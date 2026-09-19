@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       selfDestroying: true,
-      includeAssets: ["favicon.svg"],
+      includeAssets: ["favicon.ico", "favicon.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png"],
       manifest: {
         name: "南瓜相册",
         short_name: "南瓜相册",
@@ -22,9 +22,15 @@ export default defineConfig({
         start_url: "/",
         icons: [
           {
-            src: "/favicon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
             purpose: "any",
           },
         ],

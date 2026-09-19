@@ -13,6 +13,9 @@ export function renderLoginPage(options: LoginPageOptions = {}): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#E8F3FB" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>南瓜相册</title>
     <style>
       :root { color-scheme: light dark; }

@@ -4,7 +4,7 @@ import { getRequestSession } from "./auth-cookie"
 import { renderLoginPage } from "./login-page"
 
 const PUBLIC_FILE =
-  /^\/(assets\/|favicon\.svg$|manifest\.webmanifest$|sw\.js$|registerSW\.js$|workbox-)/
+  /^\/(assets\/|favicon\.(ico|png|svg)$|apple-touch-icon\.png$|icon-\d+\.png$|manifest\.webmanifest$|sw\.js$|registerSW\.js$|workbox-)/
 
 export async function serveApp(c: Context<{ Bindings: Env }>) {
   const path = c.req.path
