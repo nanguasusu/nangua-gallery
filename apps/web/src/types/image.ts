@@ -8,4 +8,5 @@ export type {
   ImageUploadResponse,
   SyncResult,
   UploadConcurrency,
+  ImageSort,
 } from "@nangua/shared"

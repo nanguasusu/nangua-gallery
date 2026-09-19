@@ -9,18 +9,22 @@ export type {
   Album,
   AlbumSummary,
   SyncResult,
+  ImageSort,
 } from "./image"
-export type { AllowedImageMimeType } from "./mime"
 export {
   IMAGE_EXTENSIONS,
+  IMAGE_SORTS,
   isImageKey,
   filenameFromKey,
   encodeObjectKey,
   decodeObjectKey,
   escapeLike,
+  parseImageSort,
 } from "./image"
 export { readImageDimensions } from "./image-size"
 export type { ImageDimensions } from "./image-size"
+export { readExifTakenAt, exifDateToIso, parseTiffTakenAt } from "./exif"
+export type { AllowedImageMimeType } from "./mime"
 export { MAX_IMAGE_BYTES, MAX_DELETE_KEYS, UPLOAD_CONCURRENCY, MULTIPART_OVERHEAD_BYTES, ALLOWED_IMAGE_MIME_TYPES, normalizeImageMime, extensionFromMime, mimeFromExtension, sniffImageMime, resolveUploadMime } from "./mime"
 export { defaultUploadDirectory, sanitizeDirectory, generateObjectKey } from "./object-key"
 export { formatPlainUrls, formatMarkdown, formatHtml } from "./copy"

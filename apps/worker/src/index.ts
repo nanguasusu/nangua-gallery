@@ -12,19 +12,48 @@ import { adminRoutes } from "./routes/admin"
 import { shortRoutes } from "./routes/short"
 import { jsonError } from "./utils/response"
 import { serveApp } from "./utils/app-shell"
+import { runGalleryMaintenance } from "./services/maintenance"
+import {
+  isMutatingMethod,
+  matchAllowedOrigin,
+  originFromReferer,
+  resolveAllowedOrigins,
+} from "./utils/origin"
 
 const app = new Hono<{ Bindings: Env }>()
 
 app.use(
   "/api/*",
   cors({
-    origin: (origin) => origin,
+    origin: (origin, c) => {
+      const allowed = resolveAllowedOrigins(c.req.url, c.env.GALLERY_ORIGINS)
+      return matchAllowedOrigin(origin, allowed)
+    },
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     maxAge: 86400,
   }),
 )
+
+app.use("/api/*", async (c, next) => {
+  if (isMutatingMethod(c.req.method)) {
+    const allowed = resolveAllowedOrigins(c.req.url, c.env.GALLERY_ORIGINS)
+    const origin = c.req.header("Origin")
+    if (origin && !matchAllowedOrigin(origin, allowed)) {
+      return jsonError(c, 403, "FORBIDDEN", "来源不被允许")
+    }
+
+    if (!origin) {
+      const refererOrigin = originFromReferer(c.req.header("Referer"))
+      if (refererOrigin && !matchAllowedOrigin(refererOrigin, allowed)) {
+        return jsonError(c, 403, "FORBIDDEN", "来源不被允许")
+      }
+    }
+  }
+
+  await next()
+})
 
 app.use("/api/*", async (c, next) => {
   await next()
@@ -57,4 +86,13 @@ app.onError((error, c) => {
   return jsonError(c, 500, "INTERNAL_ERROR", "发生了意外错误")
 })
 
-export default app
+export default {
+  fetch: app.fetch,
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      runGalleryMaintenance(env).catch((error) => {
+        console.error("Gallery maintenance failed", error)
+      }),
+    )
+  },
+}

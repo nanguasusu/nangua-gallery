@@ -16,12 +16,20 @@ export const images = sqliteTable(
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
     deletedAt: text("deleted_at"),
     shortId: text("short_id").unique(),
+    sortAt: text("sort_at").notNull(),
+    takenAt: text("taken_at"),
+    purgeStatus: text("purge_status"),
   },
   (table) => [
     index("images_created_at_idx").on(table.createdAt),
     index("images_uploaded_at_idx").on(table.uploadedAt),
     index("images_favorite_idx").on(table.favorite),
     index("images_deleted_at_idx").on(table.deletedAt),
+    index("images_active_sort_idx").on(table.sortAt, table.id),
+    index("images_deleted_sort_idx").on(table.deletedAt, table.sortAt, table.id),
+    index("images_favorite_sort_idx").on(table.favorite, table.deletedAt, table.sortAt, table.id),
+    index("images_purge_status_idx").on(table.purgeStatus),
+    index("images_taken_at_idx").on(table.takenAt),
   ],
 )
 

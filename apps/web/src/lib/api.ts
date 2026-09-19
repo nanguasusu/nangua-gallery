@@ -139,6 +139,9 @@ export async function fetchImages(
   if (params.albumId) {
     search.set("album", params.albumId)
   }
+  if (params.sort && params.sort !== "date") {
+    search.set("sort", params.sort)
+  }
 
   return apiJson(`/api/images?${search.toString()}`, {
     method: "GET",
@@ -149,12 +152,24 @@ export async function fetchImages(
 export function uploadImage(
   file: File,
   onProgress?: (ratio: number | null) => void,
-  options?: { convertWebp?: boolean; quality?: number },
+  options?: { convertWebp?: boolean; quality?: number; signal?: AbortSignal },
 ): Promise<ImageUploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open("POST", "/api/images")
     xhr.withCredentials = true
+
+    const abort = () => {
+      xhr.abort()
+    }
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        abort()
+        reject(new ApiError("UPLOAD_CANCELLED", "已取消上传", 0))
+        return
+      }
+      options.signal.addEventListener("abort", abort, { once: true })
+    }
 
     xhr.upload.onprogress = (event) => {
       if (!onProgress) {
@@ -168,6 +183,7 @@ export function uploadImage(
     }
 
     xhr.onload = () => {
+      options?.signal?.removeEventListener("abort", abort)
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           resolve(JSON.parse(xhr.responseText) as ImageUploadResponse)
@@ -193,11 +209,13 @@ export function uploadImage(
     }
 
     xhr.onerror = () => {
+      options?.signal?.removeEventListener("abort", abort)
       reject(new ApiError("UPLOAD_FAILED", "上传失败", 0))
     }
 
     xhr.onabort = () => {
-      reject(new ApiError("UPLOAD_FAILED", "已取消上传", 0))
+      options?.signal?.removeEventListener("abort", abort)
+      reject(new ApiError("UPLOAD_CANCELLED", "已取消上传", 0))
     }
 
     const form = new FormData()
@@ -415,6 +433,8 @@ function matchesSearch(item: ImageItem, search: string): boolean {
   return (
     item.originalName?.toLowerCase().includes(needle) ||
     item.key.toLowerCase().includes(needle) ||
-    item.filename.toLowerCase().includes(needle)
+    item.filename.toLowerCase().includes(needle) ||
+    item.takenAt?.toLowerCase().includes(needle) ||
+    Boolean(item.albums?.some((album) => album.name.toLowerCase().includes(needle)))
   )
 }

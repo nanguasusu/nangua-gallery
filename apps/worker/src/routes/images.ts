@@ -4,6 +4,7 @@ import { jsonError } from "../utils/response"
 import { isUsablePublicBaseUrl, parseLimit } from "../utils/image"
 import { requireSession } from "../middleware/auth"
 import { handleServiceError } from "../utils/service-error"
+import { parseImageSort } from "@nangua/shared"
 import { ImageServiceError, ensureShortIds, listImagesFromDb, normalizeImageIds, permanentlyDeleteImages, restoreImages, setFavorite, setFavoriteMany, trashImages } from "../services/imageService"
 
 export const imagesRoutes = new Hono<{ Bindings: Env }>()
@@ -28,6 +29,7 @@ imagesRoutes.get("/", async (c) => {
       favorite: parseBooleanFlag(c.req.query("favorite")),
       deleted: parseBooleanFlag(c.req.query("deleted")),
       albumId: c.req.query("album") || undefined,
+      sort: parseImageSort(c.req.query("sort")),
     })
     return c.json(result)
   } catch (error) {

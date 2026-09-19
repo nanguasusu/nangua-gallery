@@ -1,8 +1,11 @@
+import type { ImageSort } from "@/types/image"
+
 export interface ImageListFilter {
   favorite?: boolean
   albumId?: string
   search?: string
   deleted?: boolean
+  sort?: ImageSort
 }
 
 export const queryKeys = {

@@ -135,8 +135,9 @@ POST /api/admin/sync
 | `GALLERY_USERNAME` | 登录用户名（Wrangler secret） |
 | `GALLERY_PASSWORD` | 登录密码（Wrangler secret） |
 | `SESSION_SECRET` | 会话签名密钥（Wrangler secret） |
-| `ENABLE_DELETE` | 默认 `false`。只有设为 `true` 才允许永久删除（R2 delete） |
+| `ENABLE_DELETE` | 默认 `false`。只有设为 `true` 才允许永久删除（R2 delete）。回收站 30 天自动清理也受此开关保护 |
 | `ADMIN_TOKEN` | 可选。管理 API 的 Bearer token |
+| `GALLERY_ORIGINS` | 可选。额外允许的 CORS 来源，逗号分隔。Worker 自身 origin 和本地 Vite 默认已允许 |
 
 本地复制 `apps/worker/.dev.vars.example` 为 `.dev.vars`。生产：
 
@@ -167,7 +168,7 @@ npx wrangler secret put ADMIN_TOKEN
 | --- | --- |
 | `npm run dev` | 前端 + Worker |
 | `npm run typecheck` | TypeScript |
-| `npm run lint` | ESLint |
+| `npm run test` | Vitest |
 | `npm run build` | 构建前端并检查 Worker |
 | `npm run db:generate` | 根据 Drizzle schema 生成 migration |
 | `npm run db:migrate:local` | 把 migration 应用到本地 D1 |
@@ -191,11 +192,13 @@ npx wrangler secret put ADMIN_TOKEN
 git push origin main
 ```
 
-到仓库的 **Actions** 页看部署是否成功。改表结构时在本地跑 `npm run db:migrate:remote`，GitHub 自动部署只更新 Worker 代码。这次新增了 `gallery_settings` 和 `images.short_id`，部署后需要执行一次 remote migration。
+到仓库的 **Actions** 页看部署是否成功。GitHub Actions 会在部署前跑 `typecheck` / `lint`，并执行 `wrangler d1 migrations apply nangua-gallery --remote`。这次新增了 `images.sort_at`、`images.purge_status` 和对应列表索引。
 
 ## API
 
-所有 `/api/images*`、`/api/albums*`、`/api/image*`、`GET/PATCH /api/config` 都需要登录 cookie。`POST /api/admin/sync` 需要登录或 `ADMIN_TOKEN`。`GET /s/:id` 公开跳转，不需要登录。
+所有 `/api/images*`、`/api/albums*`、`/api/image*`、`GET/PATCH /api/config` 都需要登录 cookie。`POST /api/admin/sync` 需要登录或 `ADMIN_TOKEN`。`GET /s/:id` 公开跳转，不需要登录。回收站中的短链返回 404。
+
+变更类请求会校验 `Origin` / `Referer` 是否在允许列表中（Worker 自身 origin、本地 Vite，以及可选的 `GALLERY_ORIGINS`）。
 
 列表响应继续使用 `{ items, cursor, hasMore }`。错误继续使用 `{ error: { code, message } }`。
 
@@ -206,12 +209,13 @@ git push origin main
 Query：
 
 - `cursor` / `limit`（默认 50，最大 100）
-- `search`：`original_name` 和 `object_key` 的 LIKE（会转义 `%` `_`）
+- `search`：`original_name`、`object_key`、`taken_at` 和相册名的 LIKE（会转义 `%` `_`）
 - `favorite=true`
 - `album=<albumId>`
 - `deleted=true`（回收站；默认 `deleted_at IS NULL`）
+- `sort=date|name|size`（默认 `date`，按 `sort_at`；有 EXIF 拍摄时间时 `sort_at` 用拍摄时间）
 
-排序：`coalesce(uploaded_at, created_at) DESC`。
+排序：`date` 为 `sort_at DESC`。正在永久删除的行（`purge_status=pending`）不会出现在列表里。
 
 ### `POST /api/images`
 
@@ -272,7 +276,7 @@ Query：
 
 ### `POST /api/images/permanent-delete`
 
-仅回收站中的图片。流程：确认 `deleted_at IS NOT NULL` → 删除 R2 object → 删除 `album_images` → 删除 `images` 行。受 `ENABLE_DELETE` 保护。
+仅回收站中的图片。流程：确认 `deleted_at IS NOT NULL` → 标记 `purge_status=pending` → 删除 R2 object → D1 batch 清封面 / `album_images` / `images` 行。受 `ENABLE_DELETE` 保护。R2 已删但 D1 未清时，每日 cron 会重试。
 
 ### Albums
 
@@ -318,21 +322,27 @@ Query：
 - 上传成功后写入 D1（含宽高、短链）并插入列表
 - 照片按年/月分组，月份标题吸顶
 - 公开短链 `/s/:id` 跳转到原图，不改 object key
+- 网格按宽高做两端对齐排版，并虚拟化已加载行
+- Lightbox 使用 Dialog 焦点管理，支持滑动切图，先显示缩略图再加载原图
+- 上传队列可取消进行中的请求
+- JPEG / WebP / PNG 读取 EXIF 拍摄时间，用于默认时间线
+- 搜索覆盖文件名、对象键、拍摄日期和相册名；可按拍摄时间 / 文件名 / 大小排序
+- 永久删除先标记 `purge_status=pending`，删 R2 后再清 D1；失败可由每日 cron 对账
+- 回收站超过 30 天的图片，在 `ENABLE_DELETE=true` 时由 cron 自动永久删除
 
 ## 已知限制
 
-- 回收站不会自动清空。30 天清理仍未做
-- 没有全文搜索 / EXIF / 人脸
-- 缩略图依赖 Images Binding；若账户或运行时不支持，会回退加载原图
-- 网格仍是 1:1，尚未做瀑布流（宽高已写入，后续可用来排版）
+- 没有人脸识别；全文搜索仍是 LIKE，不是 FTS
+- EXIF 拍摄时间依赖文件头，转换 WebP 前会从原图读取；历史对象需再同步一次才能补齐
+- 缩略图依赖 Images Binding；若账户或运行时不支持，会回退加载原图（不再二次拉取 R2）
 - 单用户登录墙
 - D1 有记录但 R2 对象缺失时，卡片显示「图片缺失」
-- 永久删除默认关闭；不要对历史生产对象做删除测试
+- 永久删除默认关闭；不要对历史生产对象做删除测试。关闭时 cron 也不会自动清回收站
+- 回收站中的图片短链会 404，但公开 R2 URL 仍然可访问（历史对象 key 不变）
 
 ## 后续建议
 
-- 回收站 30 天自动清理
-- 标签、拍摄时间（EXIF）
+- 标签
 - 原图缺失的 metadata 修复工具
-- 瀑布流布局
-- 网格虚拟列表（图片过千张时）
+- 选择页 / 键盘多选
+- 真正的 PWA 离线壳

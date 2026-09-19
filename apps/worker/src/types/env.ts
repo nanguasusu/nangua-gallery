@@ -7,6 +7,7 @@ export interface Env {
   SESSION_SECRET: string
   ENABLE_DELETE?: string
   ADMIN_TOKEN?: string
+  GALLERY_ORIGINS?: string
   ASSETS: Fetcher
   IMAGES?: ImagesBinding
 }

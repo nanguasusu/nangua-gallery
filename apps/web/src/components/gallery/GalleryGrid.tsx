@@ -1,11 +1,9 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import type { ImageItem } from "@/types/image"
 import { GalleryCard } from "@/components/gallery/GalleryCard"
 import { GallerySkeleton } from "@/components/gallery/GallerySkeleton"
-import { groupImagesByMonth } from "@/lib/group-images"
-import { cn } from "@/lib/utils"
-
-type GalleryLayout = "square"
+import { buildGalleryRows, galleryLayoutMetrics } from "@/lib/group-images"
 
 interface GalleryGridProps {
   images: ImageItem[]
@@ -20,11 +18,7 @@ interface GalleryGridProps {
   isFetchingNextPage: boolean
   onLoadMore: () => void
   canLoadMore: boolean
-}
-
-const layoutClassName: Record<GalleryLayout, string> = {
-  square:
-    "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6",
+  groupByMonth?: boolean
 }
 
 export function GalleryGrid({
@@ -40,62 +34,139 @@ export function GalleryGrid({
   isFetchingNextPage,
   onLoadMore,
   canLoadMore,
+  groupByMonth = true,
 }: GalleryGridProps) {
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const layout: GalleryLayout = "square"
-  const selected = new Set(selectedKeys)
-  const groups = groupImagesByMonth(images)
-  let cardIndex = 0
+  const listRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return 0
+    }
+    const chrome = window.innerWidth >= 768 ? 284 : 24
+    return Math.max(320, Math.floor(window.innerWidth - chrome))
+  })
+  const selected = useMemo(() => new Set(selectedKeys), [selectedKeys])
+  const { gap } = galleryLayoutMetrics(width)
+  const rows = useMemo(
+    () => (width > 0 ? buildGalleryRows(images, width, { groupByMonth }) : []),
+    [images, width, groupByMonth],
+  )
 
   useEffect(() => {
-    const node = sentinelRef.current
+    const node = listRef.current
     if (!node) {
       return
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && canLoadMore) {
-          onLoadMore()
-        }
-      },
-      { rootMargin: "480px 0px" },
-    )
+    const updateWidth = () => {
+      setWidth(Math.floor(node.getBoundingClientRect().width))
+    }
 
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [canLoadMore, onLoadMore])
+  }, [])
+
+  const virtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: (index) => rows[index]?.height ?? 200,
+    overscan: 8,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+    getItemKey: (index) => rows[index]?.key ?? index,
+  })
+
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rows, virtualizer])
+
+  const virtualItems = virtualizer.getVirtualItems()
+
+  useEffect(() => {
+    const last = virtualItems.at(-1)
+    if (!last || rows.length === 0) {
+      return
+    }
+    if (last.index >= rows.length - 3 && canLoadMore) {
+      onLoadMore()
+    }
+  }, [virtualItems, rows.length, canLoadMore, onLoadMore])
+
+  const firstVisible = virtualItems[0]
+  const stickyLabel = firstVisible ? stickyMonthLabel(rows, firstVisible.index) : null
+  const firstRow = firstVisible ? rows[firstVisible.index] : undefined
+  const showSticky = Boolean(stickyLabel && firstRow?.type !== "header")
 
   return (
-    <div>
-      {groups.map((group) => (
-        <section key={group.key} className="mb-6 last:mb-0">
-          <h3 className="sticky top-14 z-10 -mx-1 mb-3 bg-background/80 px-1 py-2 text-[15px] font-semibold backdrop-blur-xl md:top-16">
-            {group.label}
+    <div ref={listRef} className="relative">
+      {showSticky ? (
+        <div className="pointer-events-none sticky top-14 z-10 -mb-12 h-12 md:top-16">
+          <h3 className="-mx-1 bg-background/80 px-1 py-2 text-[15px] font-semibold backdrop-blur-xl">
+            {stickyLabel}
           </h3>
-          <div className={cn(layoutClassName[layout])}>
-            {group.images.map((image) => {
-              const priority = cardIndex < 8
-              cardIndex += 1
-              return (
-                <GalleryCard
-                  key={image.id || image.key}
-                  image={image}
-                  selected={selected.has(image.key)}
-                  selectionMode={selectionMode}
-                  showFavorite={showFavorite}
-                  showDeletedAt={showDeletedAt}
-                  priority={priority}
-                  onOpen={onOpen}
-                  onSelect={(key, event) => onSelect(key, event.shiftKey)}
-                  onFavorite={onFavorite}
-                />
-              )
-            })}
-          </div>
-        </section>
-      ))}
-      <div ref={sentinelRef} className="h-8" />
+        </div>
+      ) : null}
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualItems.map((item) => {
+          const row = rows[item.index]
+          if (!row) {
+            return null
+          }
+
+          return (
+            <div
+              key={item.key}
+              data-index={item.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: `${item.size}px`,
+                transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
+              }}
+            >
+              {row.type === "header" ? (
+                <h3
+                  className="px-1 py-2 text-[15px] font-semibold"
+                  style={{ paddingTop: Math.max(8, row.height - 32) }}
+                >
+                  {row.label}
+                </h3>
+              ) : (
+                <div className="flex" style={{ gap, height: row.height - gap }}>
+                  {row.cells.map((cell, cellIndex) => (
+                    <div
+                      key={cell.image.id || cell.image.key}
+                      style={{ width: cell.width, height: cell.height }}
+                    >
+                      <GalleryCard
+                        image={cell.image}
+                        selected={selected.has(cell.image.key)}
+                        selectionMode={selectionMode}
+                        showFavorite={showFavorite}
+                        showDeletedAt={showDeletedAt}
+                        fill
+                        sizes={`${Math.round(cell.width)}px`}
+                        priority={item.index < 2 && cellIndex < 4}
+                        onOpen={onOpen}
+                        onSelect={(key, event) => onSelect(key, event.shiftKey)}
+                        onFavorite={onFavorite}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
       {isFetchingNextPage ? (
         <div className="mt-3">
           <GallerySkeleton count={6} />
@@ -108,4 +179,17 @@ export function GalleryGrid({
       ) : null}
     </div>
   )
+}
+
+function stickyMonthLabel(
+  rows: ReturnType<typeof buildGalleryRows>,
+  index: number,
+): string | null {
+  for (let cursor = index; cursor >= 0; cursor -= 1) {
+    const row = rows[cursor]
+    if (row?.type === "header") {
+      return row.label
+    }
+  }
+  return null
 }

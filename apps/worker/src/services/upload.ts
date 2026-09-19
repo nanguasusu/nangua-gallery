@@ -5,6 +5,7 @@ import {
   isImageKey,
   parseConvertWebp,
   parseWebpQuality,
+  readExifTakenAt,
   readImageDimensions,
   resolveUploadMime,
   sanitizeDirectory,
@@ -57,6 +58,8 @@ export async function putNewImage(
     throw new UploadError("INVALID_FILE_TYPE", "仅支持 JPEG、PNG、WebP、GIF、AVIF 和 BMP 图片", 400)
   }
 
+  const sourceBytes = new Uint8Array(input.bytes)
+  const takenAt = readExifTakenAt(sourceBytes)
   const converted = await convertToWebpIfRequested(
     env,
     input.bytes,
@@ -102,7 +105,8 @@ export async function putNewImage(
   })
 
   try {
-    const dimensions = readImageDimensions(new Uint8Array(bytes))
+    const storedBytes = new Uint8Array(bytes)
+    const dimensions = readImageDimensions(storedBytes) ?? readImageDimensions(sourceBytes)
     return await insertUploadedImage(env, {
       objectKey: stored.key,
       originalName: input.originalName,
@@ -111,6 +115,7 @@ export async function putNewImage(
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null,
       uploadedAt: stored.uploaded.toISOString(),
+      takenAt,
     })
   } catch (error) {
     console.error("D1 insert after R2 upload failed, compensating by deleting new object", stored.key, error)

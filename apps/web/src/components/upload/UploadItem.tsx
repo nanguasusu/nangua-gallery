@@ -1,6 +1,5 @@
 import { LoaderCircle, RotateCcw, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import type { UploadQueueItem } from "@/stores/uploadStore"
 
 interface UploadItemProps {
@@ -56,8 +55,7 @@ export function UploadItem({ item, onRetry, onRemove }: UploadItemProps) {
         type="button"
         variant="ghost"
         size="icon"
-        aria-label="移除"
-        className={cn(item.status === "uploading" && "invisible")}
+        aria-label={item.status === "uploading" || item.status === "queued" ? "取消" : "移除"}
         onClick={() => onRemove(item.id)}
       >
         <X />

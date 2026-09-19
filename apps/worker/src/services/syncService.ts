@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm"
-import { isImageKey, readImageDimensions, type ImageDimensions, type SyncResult } from "@nangua/shared"
+import { isImageKey, readExifTakenAt, readImageDimensions, type SyncResult } from "@nangua/shared"
 import type { Env } from "../types/env"
 import { getDb } from "../db/client"
 import { images } from "../db/schema"
@@ -11,6 +11,12 @@ const DEFAULT_MAX_PAGES = 40
 const HEADER_BYTES = 256 * 1024
 const DIMENSION_CONCURRENCY = 6
 const MAX_DIMENSION_READS = 48
+
+interface ImageFileMeta {
+  width: number | null
+  height: number | null
+  takenAt: string | null
+}
 
 export async function syncR2ToD1(
   env: Env,
@@ -54,6 +60,7 @@ export async function syncR2ToD1(
           width: images.width,
           height: images.height,
           shortId: images.shortId,
+          takenAt: images.takenAt,
         })
         .from(images)
         .where(inArray(images.objectKey, keys))
@@ -62,19 +69,23 @@ export async function syncR2ToD1(
 
       const toInsert = objects.filter((object) => !existingByKey.has(object.key))
       if (toInsert.length > 0) {
-        const dimensions = await mapPool(toInsert, DIMENSION_CONCURRENCY, async (object) => {
+        const meta = await mapPool(toInsert, DIMENSION_CONCURRENCY, async (object) => {
           if (remainingDimensionReads <= 0) {
             return null
           }
           remainingDimensionReads -= 1
-          return readR2ImageDimensions(env, object.key)
+          return readR2ImageMeta(env, object.key)
         })
         const rows = toInsert.map((object, index) => {
-          const size = dimensions[index]
+          const file = meta[index]
+          const takenAt = file?.takenAt ?? null
+          const base = metadataFromR2Object(object)
           return {
-            ...metadataFromR2Object(object),
-            width: size?.width ?? null,
-            height: size?.height ?? null,
+            ...base,
+            width: file?.width ?? null,
+            height: file?.height ?? null,
+            takenAt,
+            sortAt: takenAt || base.sortAt,
           }
         })
         sized += rows.filter((row) => row.width && row.height).length
@@ -96,24 +107,40 @@ export async function syncR2ToD1(
         }
       }
 
-      const missingSize = existing.filter((row) => row.width === null || row.height === null)
-      const toSize = missingSize.slice(0, remainingDimensionReads)
-      if (toSize.length > 0) {
-        remainingDimensionReads -= toSize.length
-        const updates = await mapPool(toSize, DIMENSION_CONCURRENCY, async (row) => {
-          const size = await readR2ImageDimensions(env, row.objectKey)
-          return size ? { id: row.id, ...size } : null
+      const missingMeta = existing.filter(
+        (row) => row.width === null || row.height === null || !row.takenAt,
+      )
+      const toRead = missingMeta.slice(0, remainingDimensionReads)
+      if (toRead.length > 0) {
+        remainingDimensionReads -= toRead.length
+        const updates = await mapPool(toRead, DIMENSION_CONCURRENCY, async (row) => {
+          const file = await readR2ImageMeta(env, row.objectKey)
+          return file ? { id: row.id, ...file } : null
         })
         const timestamp = nowIso()
         for (const update of updates) {
           if (!update) {
             continue
           }
-          await db
-            .update(images)
-            .set({ width: update.width, height: update.height, updatedAt: timestamp })
-            .where(eq(images.id, update.id))
-          sized += 1
+          const patch: {
+            width?: number
+            height?: number
+            takenAt?: string
+            sortAt?: string
+            updatedAt: string
+          } = { updatedAt: timestamp }
+          if (update.width && update.height) {
+            patch.width = update.width
+            patch.height = update.height
+            sized += 1
+          }
+          if (update.takenAt) {
+            patch.takenAt = update.takenAt
+            patch.sortAt = update.takenAt
+          }
+          if (patch.width || patch.takenAt) {
+            await db.update(images).set(patch).where(eq(images.id, update.id))
+          }
         }
       }
 
@@ -144,15 +171,21 @@ export async function syncR2ToD1(
   }
 }
 
-async function readR2ImageDimensions(env: Env, key: string): Promise<ImageDimensions | null> {
+async function readR2ImageMeta(env: Env, key: string): Promise<ImageFileMeta | null> {
   try {
     const object = await env.BUCKET.get(key, { range: { offset: 0, length: HEADER_BYTES } })
     if (!object) {
       return null
     }
-    return readImageDimensions(new Uint8Array(await object.arrayBuffer()))
+    const bytes = new Uint8Array(await object.arrayBuffer())
+    const size = readImageDimensions(bytes)
+    return {
+      width: size?.width ?? null,
+      height: size?.height ?? null,
+      takenAt: readExifTakenAt(bytes),
+    }
   } catch (error) {
-    console.error("Failed to read image dimensions", key, error)
+    console.error("Failed to read image metadata", key, error)
     return null
   }
 }

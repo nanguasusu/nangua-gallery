@@ -12,6 +12,17 @@ export type ImageExtension = (typeof IMAGE_EXTENSIONS)[number]
 
 const IMAGE_EXTENSION_SET = new Set<string>(IMAGE_EXTENSIONS)
 
+export type ImageSort = "date" | "name" | "size"
+
+export const IMAGE_SORTS = ["date", "name", "size"] as const
+
+export function parseImageSort(value: string | undefined | null): ImageSort {
+  if (value === "name" || value === "size") {
+    return value
+  }
+  return "date"
+}
+
 export interface ImageItem {
   id: string
   key: string
@@ -23,6 +34,7 @@ export interface ImageItem {
   width?: number
   height?: number
   uploadedAt: string
+  takenAt?: string | null
   favorite: boolean
   deletedAt?: string | null
   albums?: AlbumSummary[]

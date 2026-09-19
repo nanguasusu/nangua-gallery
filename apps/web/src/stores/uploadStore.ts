@@ -36,6 +36,8 @@ function newId() {
   return crypto.randomUUID()
 }
 
+const inflight = new Map<string, AbortController>()
+
 async function runUpload(id: string) {
   const current = useUploadStore.getState().items.find((item) => item.id === id)
   if (!current || current.status !== "queued") {
@@ -43,6 +45,8 @@ async function runUpload(id: string) {
   }
 
   const { convertWebp, webpQuality } = useUploadStore.getState()
+  const controller = new AbortController()
+  inflight.set(id, controller)
 
   useUploadStore.setState((state) => ({
     items: state.items.map((item) =>
@@ -62,7 +66,7 @@ async function runUpload(id: string) {
           ),
         }))
       },
-      { convertWebp, quality: webpQuality },
+          { convertWebp, quality: webpQuality, signal: controller.signal },
     )
 
     prependUploadedImage(response.item)
@@ -79,6 +83,15 @@ async function runUpload(id: string) {
       ),
     }))
   } catch (caught) {
+    if (!useUploadStore.getState().items.some((item) => item.id === id)) {
+      return
+    }
+    if (caught instanceof ApiError && caught.code === "UPLOAD_CANCELLED") {
+      useUploadStore.setState((state) => ({
+        items: state.items.filter((item) => item.id !== id),
+      }))
+      return
+    }
     const message =
       caught instanceof ApiError ? caught.message : "上传失败"
     useUploadStore.setState((state) => ({
@@ -89,6 +102,7 @@ async function runUpload(id: string) {
       ),
     }))
   } finally {
+    inflight.delete(id)
     pumpUploads()
   }
 }
@@ -145,6 +159,8 @@ export const useUploadStore = create<UploadState>((set) => ({
     pumpUploads()
   },
   remove: (id) => {
+    inflight.get(id)?.abort()
+    inflight.delete(id)
     set((state) => ({
       items: state.items.filter((item) => item.id !== id),
     }))

@@ -57,7 +57,7 @@ export function useImages(filter: ImageListFilter = {}) {
 
   useEffect(() => {
     emptyPageSkips.current = 0
-  }, [filter.albumId, filter.deleted, filter.favorite, filter.search])
+  }, [filter.albumId, filter.deleted, filter.favorite, filter.search, filter.sort])
 
   useEffect(() => {
     if (!lastPage) {

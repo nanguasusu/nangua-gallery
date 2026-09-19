@@ -12,6 +12,8 @@ interface GalleryCardProps {
   showFavorite?: boolean
   showDeletedAt?: boolean
   priority?: boolean
+  fill?: boolean
+  sizes?: string
   onOpen: (key: string) => void
   onSelect: (key: string, event: MouseEvent<HTMLButtonElement>) => void
   onFavorite?: (image: ImageItem) => void
@@ -24,6 +26,8 @@ export function GalleryCard({
   showFavorite = true,
   showDeletedAt = false,
   priority = false,
+  fill = false,
+  sizes,
   onOpen,
   onSelect,
   onFavorite,
@@ -32,7 +36,7 @@ export function GalleryCard({
   const [useOriginal, setUseOriginal] = useState(false)
 
   return (
-    <article className="group relative">
+    <article className={cn("group relative", fill && "h-full")}>
       <button
         type="button"
         onClick={(event) => {
@@ -45,6 +49,7 @@ export function GalleryCard({
         className={cn(
           "block w-full overflow-hidden rounded-[12px] bg-card shadow-[var(--shadow-card)] transition-transform duration-200 ease-out",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+          fill && "h-full",
           selected && "ring-2 ring-ring/40",
         )}
         aria-label={
@@ -54,7 +59,7 @@ export function GalleryCard({
         }
         aria-pressed={selectionMode ? selected : undefined}
       >
-        <div className="relative aspect-square overflow-hidden">
+        <div className={cn("relative overflow-hidden", fill ? "h-full w-full" : "aspect-square")}>
           {failed ? (
             <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
               <ImageOff className="size-5" />
@@ -62,9 +67,9 @@ export function GalleryCard({
             </div>
           ) : (
             <img
-              src={useOriginal ? image.url : thumbnailUrl(image.key)}
-              srcSet={useOriginal ? undefined : thumbnailSrcSet(image.key)}
-              sizes="(min-width: 1536px) 16vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+              src={useOriginal ? image.url : thumbnailUrl(image.key, 480)}
+              srcSet={useOriginal ? undefined : thumbnailSrcSet(image.key, 480)}
+              sizes={sizes ?? "(min-width: 1536px) 16vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"}
               alt={image.originalName || image.filename}
               loading={priority ? "eager" : "lazy"}
               fetchPriority={priority ? "high" : "auto"}

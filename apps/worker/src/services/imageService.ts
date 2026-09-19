@@ -4,14 +4,16 @@ import {
   filenameFromKey,
   mimeFromExtension,
   newShortId,
+  parseImageSort,
   type ImageItem,
   type ImageListResponse,
+  type ImageSort,
 } from "@nangua/shared"
 import type { Env } from "../types/env"
 import { getDb } from "../db/client"
 import { albumImages, albums, images } from "../db/schema"
-import { decodeListCursor, encodeListCursor, newId, nowIso, sortTimestamp, toImageItem } from "../db/map"
-import { DeleteError, deleteImageKeys } from "./delete"
+import { decodeListCursor, encodeListCursor, nameSortKey, newId, nowIso, sortTimestamp, toImageItem } from "../db/map"
+import { DeleteError, assertDeleteEnabled, deleteImageKeys } from "./delete"
 
 export class ImageServiceError extends Error {
   readonly code: string
@@ -32,6 +34,7 @@ export interface ListImagesQuery {
   favorite?: boolean
   albumId?: string
   deleted?: boolean
+  sort?: ImageSort
 }
 
 export async function listImagesFromDb(
@@ -39,8 +42,12 @@ export async function listImagesFromDb(
   query: ListImagesQuery,
 ): Promise<ImageListResponse> {
   const db = getDb(env)
+  const sort = parseImageSort(query.sort)
   const parsedCursor = decodeListCursor(query.cursor)
+  const cursor = parsedCursor && (parsedCursor.s ?? "date") === sort ? parsedCursor : null
   const filters: SQL[] = []
+
+  filters.push(isNull(images.purgeStatus))
 
   if (query.deleted) {
     filters.push(isNotNull(images.deletedAt))
@@ -57,20 +64,48 @@ export async function listImagesFromDb(
     const searchFilter = or(
       sql`${images.originalName} LIKE ${like} ESCAPE '\\'`,
       sql`${images.objectKey} LIKE ${like} ESCAPE '\\'`,
+      sql`${images.takenAt} LIKE ${like} ESCAPE '\\'`,
+      sql`exists (
+        select 1 from ${albumImages}
+        inner join ${albums} on ${albums.id} = ${albumImages.albumId}
+        where ${albumImages.imageId} = ${images.id}
+          and ${albums.name} LIKE ${like} ESCAPE '\\'
+      )`,
     )
     if (searchFilter) {
       filters.push(searchFilter)
     }
   }
 
-  if (parsedCursor) {
-    filters.push(
-      sql`(coalesce(${images.uploadedAt}, ${images.createdAt}) < ${parsedCursor.t} OR (coalesce(${images.uploadedAt}, ${images.createdAt}) = ${parsedCursor.t} AND ${images.id} < ${parsedCursor.i}))`,
-    )
+  const nameExpr = sql<string>`lower(coalesce(${images.originalName}, ${images.objectKey}))`
+
+  if (cursor) {
+    if (sort === "name") {
+      filters.push(
+        sql`(${nameExpr} > ${cursor.t} OR (${nameExpr} = ${cursor.t} AND ${images.id} > ${cursor.i}))`,
+      )
+    } else if (sort === "size") {
+      const size = Number.parseInt(cursor.t, 10)
+      if (Number.isFinite(size)) {
+        filters.push(
+          sql`(${images.size} < ${size} OR (${images.size} = ${size} AND ${images.id} < ${cursor.i}))`,
+        )
+      }
+    } else {
+      filters.push(
+        sql`(${images.sortAt} < ${cursor.t} OR (${images.sortAt} = ${cursor.t} AND ${images.id} < ${cursor.i}))`,
+      )
+    }
   }
 
   const whereClause = filters.length === 1 ? filters[0] : and(...filters)
   const take = query.limit + 1
+  const orderBy =
+    sort === "name"
+      ? [nameExpr, images.id]
+      : sort === "size"
+        ? [desc(images.size), desc(images.id)]
+        : [desc(images.sortAt), desc(images.id)]
 
   const rows = query.albumId
     ? await db
@@ -78,24 +113,31 @@ export async function listImagesFromDb(
         .from(images)
         .innerJoin(albumImages, eq(albumImages.imageId, images.id))
         .where(and(eq(albumImages.albumId, query.albumId), whereClause))
-        .orderBy(sql`coalesce(${images.uploadedAt}, ${images.createdAt}) DESC`, desc(images.id))
+        .orderBy(...orderBy)
         .limit(take)
         .then((result) => result.map((row) => row.image))
     : await db
         .select()
         .from(images)
         .where(whereClause)
-        .orderBy(sql`coalesce(${images.uploadedAt}, ${images.createdAt}) DESC`, desc(images.id))
+        .orderBy(...orderBy)
         .limit(take)
 
   const hasMore = rows.length > query.limit
   const page = hasMore ? rows.slice(0, query.limit) : rows
   const last = page.at(-1)
   const albumMap = await loadAlbumSummaries(env, page.map((row) => row.id))
+  const cursorValue = last
+    ? sort === "name"
+      ? nameSortKey(last)
+      : sort === "size"
+        ? String(last.size)
+        : sortTimestamp(last)
+    : undefined
 
   return {
     items: page.map((row) => toImageItem(row, env.PUBLIC_IMAGE_BASE_URL, albumMap.get(row.id) ?? [])),
-    cursor: last && hasMore ? encodeListCursor(sortTimestamp(last), last.id) : undefined,
+    cursor: last && hasMore && cursorValue !== undefined ? encodeListCursor({ t: cursorValue, i: last.id, s: sort }) : undefined,
     hasMore,
   }
 }
@@ -136,10 +178,12 @@ export async function insertUploadedImage(
     width?: number | null
     height?: number | null
     uploadedAt: string
+    takenAt?: string | null
   },
 ): Promise<ImageItem> {
   const db = getDb(env)
   const timestamp = nowIso()
+  const takenAt = input.takenAt || null
   const row = {
     id: newId(),
     objectKey: input.objectKey,
@@ -154,6 +198,9 @@ export async function insertUploadedImage(
     favorite: false,
     deletedAt: null,
     shortId: await allocateShortId(env),
+    sortAt: takenAt || input.uploadedAt || timestamp,
+    takenAt,
+    purgeStatus: null,
   }
 
   await db.insert(images).values(row)
@@ -230,12 +277,21 @@ export async function restoreImages(env: Env, imageIds: string[]): Promise<strin
   await db
     .update(images)
     .set({ deletedAt: null, updatedAt: nowIso() })
-    .where(and(inArray(images.id, ids), isNotNull(images.deletedAt)))
+    .where(and(inArray(images.id, ids), isNotNull(images.deletedAt), isNull(images.purgeStatus)))
 
   return ids
 }
 
 export async function permanentlyDeleteImages(env: Env, imageIds: string[]): Promise<string[]> {
+  try {
+    assertDeleteEnabled(env)
+  } catch (error) {
+    if (error instanceof DeleteError) {
+      throw new ImageServiceError(error.code, error.message, error.status)
+    }
+    throw error
+  }
+
   const ids = normalizeImageIds(imageIds)
   const db = getDb(env)
   const rows = await db
@@ -249,6 +305,12 @@ export async function permanentlyDeleteImages(env: Env, imageIds: string[]): Pro
 
   const keys = rows.map((row) => row.objectKey)
   const deletedIds = rows.map((row) => row.id)
+  const timestamp = nowIso()
+
+  await db
+    .update(images)
+    .set({ purgeStatus: "pending", updatedAt: timestamp })
+    .where(inArray(images.id, deletedIds))
 
   try {
     await deleteImageKeys(env, keys)
@@ -260,13 +322,25 @@ export async function permanentlyDeleteImages(env: Env, imageIds: string[]): Pro
     throw new ImageServiceError("DELETE_FAILED", "无法从 R2 删除图片", 500)
   }
 
-  await db
-    .update(albums)
-    .set({ coverImageId: null, updatedAt: nowIso() })
-    .where(inArray(albums.coverImageId, deletedIds))
-  await db.delete(albumImages).where(inArray(albumImages.imageId, deletedIds))
-  await db.delete(images).where(inArray(images.id, deletedIds))
+  await removePurgedImageRows(env, deletedIds)
   return deletedIds
+}
+
+async function removePurgedImageRows(env: Env, deletedIds: string[]) {
+  if (deletedIds.length === 0) {
+    return
+  }
+
+  const db = getDb(env)
+  const timestamp = nowIso()
+  await db.batch([
+    db
+      .update(albums)
+      .set({ coverImageId: null, updatedAt: timestamp })
+      .where(inArray(albums.coverImageId, deletedIds)),
+    db.delete(albumImages).where(inArray(albumImages.imageId, deletedIds)),
+    db.delete(images).where(inArray(images.id, deletedIds)),
+  ])
 }
 
 export function metadataFromR2Object(object: R2Object) {
@@ -285,6 +359,9 @@ export function metadataFromR2Object(object: R2Object) {
     favorite: false,
     deletedAt: null,
     shortId: newShortId(),
+    sortAt: object.uploaded.toISOString(),
+    takenAt: null,
+    purgeStatus: null,
   }
 }
 
@@ -305,7 +382,11 @@ export function normalizeImageIds(ids: unknown): string[] {
 
 export async function getImageByShortId(env: Env, shortId: string) {
   const db = getDb(env)
-  const [row] = await db.select().from(images).where(eq(images.shortId, shortId)).limit(1)
+  const [row] = await db
+    .select()
+    .from(images)
+    .where(and(eq(images.shortId, shortId), isNull(images.deletedAt), isNull(images.purgeStatus)))
+    .limit(1)
   return row ?? null
 }
 

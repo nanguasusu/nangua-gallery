@@ -14,6 +14,8 @@ import { useImages } from "@/hooks/useImages"
 import { useSetFavorites, useToggleFavorite } from "@/hooks/useFavorite"
 import { usePermanentDeleteImages, useRestoreImages, useTrashImages } from "@/hooks/useTrash"
 import { useRemoveImagesFromAlbum, useSetAlbumCover } from "@/hooks/useAlbums"
+import { IMAGE_SORTS, parseImageSort, type ImageSort } from "@nangua/shared"
+import { OptionPills } from "@/components/shared/OptionPills"
 import { ApiError } from "@/lib/api"
 import type { ImageListFilter } from "@/lib/query-keys"
 import { useGalleryStore } from "@/stores/galleryStore"
@@ -38,8 +40,9 @@ export function GalleryView({
   emptyActionLabel,
   onEmptyAction,
 }: GalleryViewProps) {
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const search = params.get("q")?.trim() || undefined
+  const sort = parseImageSort(params.get("sort"))
   const {
     images,
     isPending,
@@ -53,6 +56,7 @@ export function GalleryView({
     ...filter,
     albumId,
     search,
+    sort,
   })
   const config = useConfig()
   const enablePermanentDelete = config.data?.enableDelete === true
@@ -111,6 +115,16 @@ export function GalleryView({
   const pendingPermanent = selectedImages(pendingPermanentKeys)
   const addToAlbumImages = selectedImages(selectedKeys)
 
+  const setSort = (next: ImageSort) => {
+    const nextParams = new URLSearchParams(params)
+    if (next === "date") {
+      nextParams.delete("sort")
+    } else {
+      nextParams.set("sort", next)
+    }
+    setParams(nextParams, { replace: true })
+  }
+
   return (
     <>
       {isPending ? <GallerySkeleton count={12} /> : null}
@@ -130,20 +144,32 @@ export function GalleryView({
         />
       ) : null}
       {!isPending && !isError && images.length > 0 ? (
-        <GalleryGrid
-          images={images}
-          selectedKeys={selectedKeys}
-          selectionMode={selectionMode}
-          showFavorite={mode !== "trash"}
-          showDeletedAt={mode === "trash"}
-          onOpen={openLightbox}
-          onSelect={onSelect}
-          onFavorite={(image) => toggleFavorite.mutate({ image, favorite: !image.favorite })}
-          hasNextPage={Boolean(hasNextPage)}
-          isFetchingNextPage={isFetchingNextPage}
-          onLoadMore={loadMore}
-          canLoadMore={Boolean(hasNextPage) && !isFetchingNextPage && !isError}
-        />
+        <>
+          <div className="-mt-1 mb-3">
+            <OptionPills
+              value={sort}
+              options={IMAGE_SORTS}
+              labels={{ date: "拍摄时间", name: "文件名", size: "大小" }}
+              onChange={setSort}
+              ariaLabel="排序"
+            />
+          </div>
+          <GalleryGrid
+            images={images}
+            selectedKeys={selectedKeys}
+            selectionMode={selectionMode}
+            showFavorite={mode !== "trash"}
+            showDeletedAt={mode === "trash"}
+            groupByMonth={sort === "date"}
+            onOpen={openLightbox}
+            onSelect={onSelect}
+            onFavorite={(image) => toggleFavorite.mutate({ image, favorite: !image.favorite })}
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            onLoadMore={loadMore}
+            canLoadMore={Boolean(hasNextPage) && !isFetchingNextPage && !isError}
+          />
+        </>
       ) : null}
       <GallerySelectionBar
         images={images}

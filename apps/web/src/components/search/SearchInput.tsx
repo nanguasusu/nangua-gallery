@@ -55,7 +55,7 @@ export function SearchInput() {
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onFocus={() => setExpanded(true)}
-          placeholder="搜索文件名"
+          placeholder="搜索文件名、相册或日期"
           className={cn(
             "h-9 w-full bg-transparent pr-2 text-sm outline-none",
             expanded ? "opacity-100" : "pointer-events-none opacity-0 sm:pointer-events-auto sm:opacity-100",

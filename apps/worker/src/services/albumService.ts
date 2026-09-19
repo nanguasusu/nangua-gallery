@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm"
 import type { Album } from "@nangua/shared"
 import type { Env } from "../types/env"
 import { getDb } from "../db/client"
@@ -66,24 +66,92 @@ export async function listAlbums(env: Env): Promise<Album[]> {
     return []
   }
 
-  const members = await db
+  const albumIds = albumRows.map((album) => album.id)
+  const countRows = await db
     .select({
       albumId: albumImages.albumId,
-      addedAt: albumImages.createdAt,
-      image: images,
+      imageCount: sql<number>`count(*)`,
     })
     .from(albumImages)
     .innerJoin(images, eq(images.id, albumImages.imageId))
-    .where(isNull(images.deletedAt))
+    .where(and(inArray(albumImages.albumId, albumIds), isNull(images.deletedAt), isNull(images.purgeStatus)))
+    .groupBy(albumImages.albumId)
 
-  const grouped = new Map<string, typeof members>()
-  for (const member of members) {
-    const current = grouped.get(member.albumId) ?? []
-    current.push(member)
-    grouped.set(member.albumId, current)
+  const countMap = new Map(countRows.map((row) => [row.albumId, Number(row.imageCount) || 0]))
+  const coverIds = [...new Set(albumRows.map((album) => album.coverImageId).filter((id): id is string => Boolean(id)))]
+  const coverRows = coverIds.length
+    ? await db
+        .select()
+        .from(images)
+        .where(and(inArray(images.id, coverIds), isNull(images.deletedAt), isNull(images.purgeStatus)))
+    : []
+  const coverById = new Map(coverRows.map((row) => [row.id, row]))
+
+  const missingCoverAlbumIds = albumRows
+    .filter((album) => !album.coverImageId || !coverById.has(album.coverImageId))
+    .map((album) => album.id)
+  const fallbackIds = await loadLatestAlbumImageIds(env, missingCoverAlbumIds)
+  const fallbackRows = fallbackIds.length
+    ? await db
+        .select()
+        .from(images)
+        .where(and(inArray(images.id, fallbackIds.map((row) => row.imageId)), isNull(images.deletedAt), isNull(images.purgeStatus)))
+    : []
+  const fallbackById = new Map(fallbackRows.map((row) => [row.id, row]))
+  const fallbackByAlbum = new Map(
+    fallbackIds.flatMap((row) => {
+      const image = fallbackById.get(row.imageId)
+      return image ? [[row.albumId, image] as const] : []
+    }),
+  )
+
+  return albumRows.map((album) => {
+    const cover =
+      (album.coverImageId ? coverById.get(album.coverImageId) : undefined) ??
+      fallbackByAlbum.get(album.id) ??
+      null
+    return toAlbumSummary(env, album, countMap.get(album.id) ?? 0, cover ?? null)
+  })
+}
+
+async function loadLatestAlbumImageIds(env: Env, albumIds: string[]): Promise<Array<{ albumId: string; imageId: string }>> {
+  if (albumIds.length === 0) {
+    return []
   }
 
-  return albumRows.map((album) => toAlbum(env, album, grouped.get(album.id) ?? []))
+  const results: Array<{ albumId: string; imageId: string }> = []
+  const chunkSize = 80
+  for (let offset = 0; offset < albumIds.length; offset += chunkSize) {
+    const chunk = albumIds.slice(offset, offset + chunkSize)
+    const placeholders = chunk.map(() => "?").join(", ")
+    const query = await env.DB.prepare(
+      `
+      SELECT album_id, image_id FROM (
+        SELECT
+          album_images.album_id as album_id,
+          album_images.image_id as image_id,
+          ROW_NUMBER() OVER (
+            PARTITION BY album_images.album_id
+            ORDER BY coalesce(images.sort_at, images.uploaded_at, images.created_at) DESC, images.id DESC
+          ) as rn
+        FROM album_images
+        INNER JOIN images ON images.id = album_images.image_id
+        WHERE album_images.album_id IN (${placeholders})
+          AND images.deleted_at IS NULL
+          AND images.purge_status IS NULL
+      )
+      WHERE rn = 1
+      `,
+    )
+      .bind(...chunk)
+      .all<{ album_id: string; image_id: string }>()
+
+    for (const row of query.results) {
+      results.push({ albumId: row.album_id, imageId: row.image_id })
+    }
+  }
+
+  return results
 }
 
 export async function getAlbum(env: Env, id: string): Promise<Album> {
@@ -97,7 +165,7 @@ export async function getAlbum(env: Env, id: string): Promise<Album> {
     })
     .from(albumImages)
     .innerJoin(images, eq(images.id, albumImages.imageId))
-    .where(and(eq(albumImages.albumId, id), isNull(images.deletedAt)))
+    .where(and(eq(albumImages.albumId, id), isNull(images.deletedAt), isNull(images.purgeStatus)))
 
   return toAlbum(env, album, members)
 }
@@ -189,7 +257,7 @@ export async function addImagesToAlbum(
   const existingImages = await db
     .select({ id: images.id })
     .from(images)
-    .where(and(inArray(images.id, ids), isNull(images.deletedAt)))
+    .where(and(inArray(images.id, ids), isNull(images.deletedAt), isNull(images.purgeStatus)))
   const validIds = existingImages.map((row) => row.id)
   if (validIds.length === 0) {
     throw new ImageServiceError("VALIDATION_ERROR", "没有可加入相册的图片", 400)
@@ -217,6 +285,23 @@ export async function removeImagesFromAlbum(
     .where(and(eq(albumImages.albumId, albumId), inArray(albumImages.imageId, ids)))
   await db.update(albums).set({ updatedAt: nowIso() }).where(eq(albums.id, albumId))
   return ids
+}
+
+function toAlbumSummary(
+  env: Env,
+  album: typeof albums.$inferSelect,
+  imageCount: number,
+  cover: typeof images.$inferSelect | null,
+): Album {
+  return {
+    id: album.id,
+    name: album.name,
+    description: album.description,
+    coverImage: cover ? toImageItem(cover, env.PUBLIC_IMAGE_BASE_URL) : null,
+    imageCount,
+    createdAt: album.createdAt,
+    updatedAt: album.updatedAt,
+  }
 }
 
 function toAlbum(

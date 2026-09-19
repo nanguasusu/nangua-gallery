@@ -134,8 +134,9 @@ export async function transformOrOriginal(
     return originalResponse(object.body, originalType)
   }
 
+  const [transformBody, fallbackBody] = object.body.tee()
   try {
-    const result = await env.IMAGES.input(object.body as ReadableStream<Uint8Array>)
+    const result = await env.IMAGES.input(transformBody as ReadableStream<Uint8Array>)
       .transform({
         width: query.width,
         height: query.height,
@@ -147,6 +148,7 @@ export async function transformOrOriginal(
         anim: false,
       })
 
+    void fallbackBody.cancel().catch(() => undefined)
     return result.response({
       headers: {
         "Cache-Control": THUMBNAIL_CACHE,
@@ -154,8 +156,8 @@ export async function transformOrOriginal(
     })
   } catch (error) {
     console.error("Image transform failed, falling back to original", error)
-    const fallback = await env.BUCKET.get(object.key)
-    return originalResponse(fallback?.body ?? null, fallback?.httpMetadata?.contentType || originalType)
+    void transformBody.cancel().catch(() => undefined)
+    return originalResponse(fallbackBody, originalType)
   }
 }
 

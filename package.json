@@ -15,6 +15,7 @@
     "build": "npm run build -w @nangua/web && npm run build -w @nangua/worker",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "test": "vitest run",
     "seed:local": "npm run seed:local -w @nangua/worker",
     "db:generate": "npm run db:generate -w @nangua/worker",
     "db:migrate:local": "npm run db:migrate:local -w @nangua/worker",
@@ -22,7 +23,8 @@
     "deploy": "npm run build -w @nangua/web && npm run deploy -w @nangua/worker"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20"

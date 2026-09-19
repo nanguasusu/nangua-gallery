@@ -15,6 +15,20 @@
       "when": 1758280800000,
       "tag": "0002_upload_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1758294600000,
+      "tag": "0003_list_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1758296400000,
+      "tag": "0004_taken_at",
+      "breakpoints": true
     }
   ]
 }

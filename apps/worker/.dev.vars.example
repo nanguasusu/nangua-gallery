@@ -9,4 +9,6 @@ SESSION_SECRET=generate-a-long-random-string
 ENABLE_DELETE=false
 # Optional. If set, POST /api/admin/sync also accepts Authorization: Bearer <token>.
 # Logged-in session can still run sync from Settings.
+# Optional comma-separated extra CORS origins (the Worker host is always allowed).
+# GALLERY_ORIGINS=https://gallery.example.com
 # ADMIN_TOKEN=
