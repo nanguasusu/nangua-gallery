@@ -7,18 +7,33 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/worker
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
-      - run: npm ci
-      - run: npm run build -w @nangua/web
+      - name: Install
+        working-directory: .
+        run: npm ci
+      - name: Build web
+        working-directory: .
+        run: npm run build -w @nangua/web
+      - name: Check token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CLOUDFLARE_API_TOKEN is missing"
+            exit 1
+          fi
+          echo "CLOUDFLARE_API_TOKEN is set"
       - name: Deploy Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: "434bb94329168bc60e22384a60c2785c"
-          workingDirectory: apps/worker
-          command: deploy
+        working-directory: apps/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "434bb94329168bc60e22384a60c2785c"
+        run: npx wrangler deploy
