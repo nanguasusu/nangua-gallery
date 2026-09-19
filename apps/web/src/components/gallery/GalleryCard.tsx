@@ -11,6 +11,7 @@ interface GalleryCardProps {
   selectionMode: boolean
   showFavorite?: boolean
   showDeletedAt?: boolean
+  priority?: boolean
   onOpen: (key: string) => void
   onSelect: (key: string, event: MouseEvent<HTMLButtonElement>) => void
   onFavorite?: (image: ImageItem) => void
@@ -22,6 +23,7 @@ export function GalleryCard({
   selectionMode,
   showFavorite = true,
   showDeletedAt = false,
+  priority = false,
   onOpen,
   onSelect,
   onFavorite,
@@ -62,8 +64,10 @@ export function GalleryCard({
             <img
               src={useOriginal ? image.url : thumbnailUrl(image.key)}
               srcSet={useOriginal ? undefined : thumbnailSrcSet(image.key)}
+              sizes="(min-width: 1536px) 16vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
               alt={image.originalName || image.filename}
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.03]"
               onError={() => {

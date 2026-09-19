@@ -13,7 +13,7 @@ import { useConfig } from "@/hooks/useConfig"
 import { useImages } from "@/hooks/useImages"
 import { useSetFavorites, useToggleFavorite } from "@/hooks/useFavorite"
 import { usePermanentDeleteImages, useRestoreImages, useTrashImages } from "@/hooks/useTrash"
-import { useRemoveImagesFromAlbum } from "@/hooks/useAlbums"
+import { useRemoveImagesFromAlbum, useSetAlbumCover } from "@/hooks/useAlbums"
 import { ApiError } from "@/lib/api"
 import type { ImageListFilter } from "@/lib/query-keys"
 import { useGalleryStore } from "@/stores/galleryStore"
@@ -62,6 +62,7 @@ export function GalleryView({
   const toggleFavorite = useToggleFavorite()
   const setFavorites = useSetFavorites()
   const removeFromAlbum = useRemoveImagesFromAlbum(albumId ?? "")
+  const setAlbumCover = useSetAlbumCover(albumId ?? "")
 
   const lightboxOpen = useUIStore((state) => state.lightboxOpen)
   const selectedImageKey = useUIStore((state) => state.selectedImageKey)
@@ -159,6 +160,11 @@ export function GalleryView({
         }
         onRestore={(items) => restoreImages.mutate(items)}
         onPermanentDelete={(items) => requestPermanentDelete(items.map((image) => image.key))}
+        onSetCover={
+          mode === "album" && albumId
+            ? (image) => setAlbumCover.mutate(image.id)
+            : undefined
+        }
       />
       <ImageLightbox
         images={images}
@@ -172,6 +178,11 @@ export function GalleryView({
         onTrash={(image) => requestDelete([image.key])}
         onRestore={(image) => restoreImages.mutate([image])}
         onPermanentDelete={(image) => requestPermanentDelete([image.key])}
+        onSetCover={
+          mode === "album" && albumId
+            ? (image) => setAlbumCover.mutate(image.id)
+            : undefined
+        }
       />
       <AddToAlbumDialog open={addToAlbumOpen} images={addToAlbumImages} />
       <ConfirmDialog

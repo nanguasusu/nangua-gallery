@@ -55,6 +55,8 @@ export function toImageItem(
     url: buildPublicImageUrl(publicBaseUrl, row.objectKey),
     thumbnailUrl: `/api/image/${encodeObjectKey(row.objectKey)}?w=400&h=400&fit=cover`,
     size: row.size,
+    width: row.width ?? undefined,
+    height: row.height ?? undefined,
     uploadedAt: sortTimestamp(row),
     favorite: row.favorite,
     deletedAt: row.deletedAt,

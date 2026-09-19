@@ -20,6 +20,7 @@ export function SettingsPage() {
       inserted: 0,
       skipped: 0,
       failed: 0,
+      sized: 0,
       hasMore: false,
     }
 
@@ -30,6 +31,7 @@ export function SettingsPage() {
         totals.inserted += page.inserted
         totals.skipped += page.skipped
         totals.failed += page.failed
+        totals.sized += page.sized ?? 0
         totals.hasMore = page.hasMore
         totals.cursor = page.cursor
         cursor = page.hasMore ? page.cursor : undefined
@@ -54,7 +56,7 @@ export function SettingsPage() {
       <div className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="font-medium">同步已有 R2 图片</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          把 Cloudflare R2 中已有图片写入 metadata 数据库。可重复执行，已存在的 object_key 会被跳过。
+          把 Cloudflare R2 中已有图片写入 metadata 数据库。可重复执行，已存在的 object_key 会被跳过。缺少宽高的记录会读取文件头补齐，不会改 object key。
         </p>
         <Button type="button" className="mt-4" disabled={pending} onClick={() => void runSync()}>
           {pending ? "同步中…" : "同步 R2"}
@@ -77,6 +79,10 @@ export function SettingsPage() {
             <div>
               <dt className="text-muted-foreground">Failed</dt>
               <dd className="mt-1 font-medium">{result.failed}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">尺寸补齐</dt>
+              <dd className="mt-1 font-medium">{result.sized}</dd>
             </div>
           </dl>
         ) : null}

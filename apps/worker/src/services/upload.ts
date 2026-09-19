@@ -2,6 +2,7 @@ import {
   generateObjectKey,
   isImageKey,
   MAX_IMAGE_BYTES,
+  readImageDimensions,
   resolveUploadMime,
   sanitizeDirectory,
   type ImageItem,
@@ -78,11 +79,14 @@ export async function putNewImage(
   })
 
   try {
+    const dimensions = readImageDimensions(new Uint8Array(input.bytes))
     return await insertUploadedImage(env, {
       objectKey: stored.key,
       originalName: input.originalName,
       mimeType: mime,
       size: stored.size,
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null,
       uploadedAt: stored.uploaded.toISOString(),
     })
   } catch (error) {

@@ -1,10 +1,10 @@
-import { decodeObjectKey, isImageKey } from "@nangua/shared"
+import { decodeObjectKey, encodeObjectKey, isImageKey } from "@nangua/shared"
 import type { Env } from "../types/env"
 
 const FIT_VALUES = new Set(["cover", "contain", "scale-down"])
 const THUMBNAIL_CACHE = "private, max-age=31536000, immutable"
 
-interface TransformQuery {
+export interface TransformQuery {
   width: number
   height?: number
   fit: "cover" | "contain" | "scale-down"
@@ -61,6 +61,44 @@ function parseDimension(raw: string, fallback: number): number | null {
     return null
   }
   return value
+}
+
+export function thumbnailCacheKey(objectKey: string, query: TransformQuery): Request {
+  const params = new URLSearchParams({
+    w: String(query.width),
+    fit: query.fit,
+    quality: String(query.quality),
+  })
+  if (query.height) {
+    params.set("h", String(query.height))
+  }
+
+  return new Request(`https://thumbs.nangua.local/${encodeObjectKey(objectKey)}?${params.toString()}`, {
+    method: "GET",
+  })
+}
+
+export function withThumbnailHeaders(response: Response, cacheStatus: "HIT" | "MISS"): Response {
+  const headers = new Headers(response.headers)
+  headers.set("Cache-Control", THUMBNAIL_CACHE)
+  headers.set("X-Thumbnail-Cache", cacheStatus)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export function thumbnailCacheEntry(response: Response): Response {
+  const headers = new Headers(response.headers)
+  // Cache API ignores or drops `private`. Auth still runs before cache.match.
+  headers.set("Cache-Control", "public, max-age=31536000, immutable")
+  headers.delete("X-Thumbnail-Cache")
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
 
 export function objectKeyFromTransformPath(path: string): string | null {

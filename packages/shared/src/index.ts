@@ -19,6 +19,8 @@ export {
   decodeObjectKey,
   escapeLike,
 } from "./image"
+export { readImageDimensions } from "./image-size"
+export type { ImageDimensions } from "./image-size"
 export {
   MAX_IMAGE_BYTES,
   MAX_DELETE_KEYS,

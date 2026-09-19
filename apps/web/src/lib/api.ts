@@ -263,7 +263,7 @@ export async function createAlbum(input: { name: string; description?: string })
 
 export async function updateAlbum(
   id: string,
-  input: { name?: string; description?: string | null },
+  input: { name?: string; description?: string | null; coverImageId?: string | null },
 ): Promise<Album> {
   const body = await apiJson<{ data: Album }>(`/api/albums/${encodeURIComponent(id)}`, {
     method: "PATCH",

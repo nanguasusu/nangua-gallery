@@ -1,4 +1,4 @@
-import { Code2, Copy, FileCode2, FolderPlus, Heart, RotateCcw, Trash2 } from "lucide-react"
+import { Code2, Copy, FileCode2, FolderPlus, Heart, ImageIcon, RotateCcw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatHtml, formatMarkdown, formatPlainUrls } from "@nangua/shared"
 import type { ImageItem } from "@/types/image"
@@ -17,6 +17,7 @@ interface GallerySelectionBarProps {
   onRemoveFromAlbum?: (images: ImageItem[]) => void
   onRestore?: (images: ImageItem[]) => void
   onPermanentDelete?: (images: ImageItem[]) => void
+  onSetCover?: (image: ImageItem) => void
 }
 
 async function copyText(value: string, success: string) {
@@ -39,12 +40,14 @@ export function GallerySelectionBar({
   onRemoveFromAlbum,
   onRestore,
   onPermanentDelete,
+  onSetCover,
 }: GallerySelectionBarProps) {
   if (selectedKeys.length === 0) {
     return null
   }
 
   const selected = images.filter((image) => selectedKeys.includes(image.key))
+  const coverCandidate = selected.length === 1 ? selected[0] : undefined
   const urls = selected.map((image) => image.url)
   const countLabel =
     selectedKeys.length === 1 ? "已选择 1 张" : `已选择 ${selectedKeys.length} 张`
@@ -102,6 +105,17 @@ export function GallerySelectionBar({
                 >
                   <FolderPlus />
                   加入相册
+                </Button>
+              ) : null}
+              {mode === "album" && onSetCover && coverCandidate ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onSetCover(coverCandidate)}
+                >
+                  <ImageIcon />
+                  设为封面
                 </Button>
               ) : null}
               {mode === "album" && onRemoveFromAlbum ? (

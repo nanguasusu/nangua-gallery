@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, Code2, Copy, FileCode2, Heart, ImageOff, RotateCcw, Trash2, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Code2, Copy, FileCode2, Heart, ImageIcon, ImageOff, RotateCcw, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { formatHtml, formatMarkdown } from "@nangua/shared"
 import type { ImageItem } from "@/types/image"
 import { Button } from "@/components/ui/button"
-import { formatBytes, formatDeletedAt, formatUploadedAt } from "@/lib/format"
+import { formatBytes, formatDeletedAt, formatDimensions, formatUploadedAt } from "@/lib/format"
 import type { GalleryMode } from "@/components/gallery/GallerySelectionBar"
 
 interface ImageLightboxProps {
@@ -19,6 +19,7 @@ interface ImageLightboxProps {
   onTrash?: (image: ImageItem) => void
   onRestore?: (image: ImageItem) => void
   onPermanentDelete?: (image: ImageItem) => void
+  onSetCover?: (image: ImageItem) => void
 }
 
 async function copyText(value: string) {
@@ -42,6 +43,7 @@ export function ImageLightbox({
   onTrash,
   onRestore,
   onPermanentDelete,
+  onSetCover,
 }: ImageLightboxProps) {
   const index = useMemo(
     () => images.findIndex((image) => image.key === selectedKey),
@@ -50,6 +52,7 @@ export function ImageLightbox({
   const image = index >= 0 ? images[index] : undefined
   const hasPrev = index > 0
   const hasNext = index >= 0 && index < images.length - 1
+  const nextImage = hasNext ? images[index + 1] : undefined
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -94,6 +97,8 @@ export function ImageLightbox({
     return null
   }
 
+  const dimensions = formatDimensions(image.width, image.height)
+
   const goPrev = () => {
     const prev = images[index - 1]
     if (prev) {
@@ -137,6 +142,9 @@ export function ImageLightbox({
               onError={() => setFailed(true)}
             />
           )}
+          {nextImage ? (
+            <img src={nextImage.url} alt="" className="hidden" aria-hidden="true" />
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -197,6 +205,12 @@ export function ImageLightbox({
               <dt className="text-xs text-white/45">大小</dt>
               <dd className="mt-1">{formatBytes(image.size)}</dd>
             </div>
+            {dimensions ? (
+              <div>
+                <dt className="text-xs text-white/45">尺寸</dt>
+                <dd className="mt-1">{dimensions}</dd>
+              </div>
+            ) : null}
             <div>
               <dt className="text-xs text-white/45">上传时间</dt>
               <dd className="mt-1">{formatUploadedAt(image.uploadedAt)}</dd>
@@ -270,6 +284,18 @@ export function ImageLightbox({
               >
                 <Trash2 />
                 移入回收站
+              </Button>
+            ) : null}
+            {mode === "album" && onSetCover ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => onSetCover(image)}
+                className="bg-white/10 text-white hover:bg-white/16"
+              >
+                <ImageIcon />
+                设为封面
               </Button>
             ) : null}
             {mode === "trash" && onRestore ? (

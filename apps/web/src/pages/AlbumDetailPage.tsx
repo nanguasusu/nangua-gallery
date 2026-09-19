@@ -49,7 +49,7 @@ export function AlbumDetailPage() {
         mode="album"
         albumId={albumId}
         emptyTitle="这个相册还是空的"
-        emptyDescription="在照片页多选图片，然后点「加入相册」。从相册移除不会删除图片本身。"
+        emptyDescription="在照片页多选图片，然后点「加入相册」。选中一张后可以设为封面。从相册移除不会删除图片本身。"
       />
       <ConfirmDialog
         open={confirmDelete}

@@ -5,7 +5,10 @@ import { requireSession } from "../middleware/auth"
 import {
   objectKeyFromTransformPath,
   parseTransformQuery,
+  thumbnailCacheEntry,
+  thumbnailCacheKey,
   transformOrOriginal,
+  withThumbnailHeaders,
 } from "../services/imageTransform"
 
 export const transformRoutes = new Hono<{ Bindings: Env }>()
@@ -24,12 +27,12 @@ transformRoutes.get("/*", async (c) => {
   }
 
   const cache = caches.default
-  const cacheKey = new Request(c.req.url, { method: "GET" })
+  const cacheKey = thumbnailCacheKey(key, parsed)
 
   try {
     const cached = await cache.match(cacheKey)
     if (cached) {
-      return cached
+      return withThumbnailHeaders(cached, "HIT")
     }
   } catch (error) {
     console.error("Thumbnail cache match failed", error)
@@ -41,14 +44,17 @@ transformRoutes.get("/*", async (c) => {
       return jsonError(c, 404, "NOT_FOUND", "图片不存在")
     }
 
-    const response = await transformOrOriginal(c.env, object, parsed)
-    if (response.ok) {
-      c.executionCtx.waitUntil(
-        cache.put(cacheKey, response.clone()).catch((error) => {
-          console.error("Thumbnail cache put failed", error)
-        }),
-      )
+    const generated = await transformOrOriginal(c.env, object, parsed)
+    if (!generated.ok) {
+      return generated
     }
+
+    const response = withThumbnailHeaders(generated, "MISS")
+    c.executionCtx.waitUntil(
+      cache.put(cacheKey, thumbnailCacheEntry(response.clone())).catch((error) => {
+        console.error("Thumbnail cache put failed", error)
+      }),
+    )
     return response
   } catch (error) {
     console.error("Image proxy failed", error)

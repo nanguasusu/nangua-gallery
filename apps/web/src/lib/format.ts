@@ -48,3 +48,35 @@ export function formatDeletedAt(value: string): string {
   const days = Math.round(hours / 24)
   return `${days} 天前删除`
 }
+
+export function monthGroupKey(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "unknown"
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  return `${year}-${month}`
+}
+
+export function formatMonthHeading(key: string): string {
+  if (key === "unknown") {
+    return "未知时间"
+  }
+
+  const [year, month] = key.split("-")
+  if (!year || !month) {
+    return "未知时间"
+  }
+
+  return `${year}年${Number.parseInt(month, 10)}月`
+}
+
+export function formatDimensions(width?: number, height?: number): string | null {
+  if (!width || !height) {
+    return null
+  }
+
+  return `${width} × ${height}`
+}

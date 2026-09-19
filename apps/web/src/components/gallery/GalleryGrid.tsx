@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import type { ImageItem } from "@/types/image"
 import { GalleryCard } from "@/components/gallery/GalleryCard"
 import { GallerySkeleton } from "@/components/gallery/GallerySkeleton"
+import { groupImagesByMonth } from "@/lib/group-images"
 import { cn } from "@/lib/utils"
 
 type GalleryLayout = "square"
@@ -43,6 +44,8 @@ export function GalleryGrid({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const layout: GalleryLayout = "square"
   const selected = new Set(selectedKeys)
+  const groups = groupImagesByMonth(images)
+  let cardIndex = 0
 
   useEffect(() => {
     const node = sentinelRef.current
@@ -65,21 +68,33 @@ export function GalleryGrid({
 
   return (
     <div>
-      <div className={cn(layoutClassName[layout])}>
-        {images.map((image) => (
-          <GalleryCard
-            key={image.id || image.key}
-            image={image}
-            selected={selected.has(image.key)}
-            selectionMode={selectionMode}
-            showFavorite={showFavorite}
-            showDeletedAt={showDeletedAt}
-            onOpen={onOpen}
-            onSelect={(key, event) => onSelect(key, event.shiftKey)}
-            onFavorite={onFavorite}
-          />
-        ))}
-      </div>
+      {groups.map((group) => (
+        <section key={group.key} className="mb-6 last:mb-0">
+          <h3 className="sticky top-14 z-10 -mx-1 mb-3 bg-background/80 px-1 py-2 text-[15px] font-semibold backdrop-blur-xl md:top-16">
+            {group.label}
+          </h3>
+          <div className={cn(layoutClassName[layout])}>
+            {group.images.map((image) => {
+              const priority = cardIndex < 8
+              cardIndex += 1
+              return (
+                <GalleryCard
+                  key={image.id || image.key}
+                  image={image}
+                  selected={selected.has(image.key)}
+                  selectionMode={selectionMode}
+                  showFavorite={showFavorite}
+                  showDeletedAt={showDeletedAt}
+                  priority={priority}
+                  onOpen={onOpen}
+                  onSelect={(key, event) => onSelect(key, event.shiftKey)}
+                  onFavorite={onFavorite}
+                />
+              )
+            })}
+          </div>
+        </section>
+      ))}
       <div ref={sentinelRef} className="h-8" />
       {isFetchingNextPage ? (
         <div className="mt-3">

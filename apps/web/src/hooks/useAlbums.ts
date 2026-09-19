@@ -7,6 +7,7 @@ import {
   fetchAlbum,
   fetchAlbums,
   removeImagesFromAlbum,
+  updateAlbum,
 } from "@/lib/api"
 import { queryKeys } from "@/lib/query-keys"
 
@@ -84,6 +85,21 @@ export function useRemoveImagesFromAlbum(albumId: string) {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "无法从相册移除")
+    },
+  })
+}
+
+export function useSetAlbumCover(albumId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (coverImageId: string) => updateAlbum(albumId, { coverImageId }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.albums })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.album(albumId) })
+      toast.success("已设为封面")
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "无法设置封面")
     },
   })
 }

@@ -20,6 +20,8 @@ export interface ImageItem {
   url: string
   thumbnailUrl?: string
   size: number
+  width?: number
+  height?: number
   uploadedAt: string
   favorite: boolean
   deletedAt?: string | null
@@ -60,6 +62,7 @@ export interface SyncResult {
   inserted: number
   skipped: number
   failed: number
+  sized: number
   cursor?: string
   hasMore: boolean
 }

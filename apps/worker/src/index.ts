@@ -27,6 +27,10 @@ app.use(
 
 app.use("/api/*", async (c, next) => {
   await next()
+  // Thumbnails are cached after auth. JSON APIs must never be cached.
+  if (c.req.path.startsWith("/api/image/")) {
+    return
+  }
   c.header("Cache-Control", "private, no-store, no-cache, must-revalidate")
   c.header("CDN-Cache-Control", "no-store")
   c.header("Cloudflare-CDN-Cache-Control", "no-store")

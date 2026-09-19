@@ -132,6 +132,8 @@ export async function insertUploadedImage(
     originalName: string
     mimeType: string
     size: number
+    width?: number | null
+    height?: number | null
     uploadedAt: string
   },
 ): Promise<ImageItem> {
@@ -143,8 +145,8 @@ export async function insertUploadedImage(
     originalName: input.originalName.slice(0, 200),
     mimeType: input.mimeType,
     size: input.size,
-    width: null,
-    height: null,
+    width: input.width ?? null,
+    height: input.height ?? null,
     uploadedAt: input.uploadedAt,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -273,6 +275,8 @@ export function metadataFromR2Object(object: R2Object) {
     originalName: originalFromMeta?.slice(0, 200) || filenameFromKey(object.key),
     mimeType: object.httpMetadata?.contentType || mimeFromExtension(object.key) || null,
     size: object.size,
+    width: null,
+    height: null,
     uploadedAt: object.uploaded.toISOString(),
     createdAt: nowIso(),
     updatedAt: nowIso(),

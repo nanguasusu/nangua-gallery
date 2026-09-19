@@ -125,7 +125,7 @@ POST /api/admin/sync
 
 需要已登录 session，或 `Authorization: Bearer <ADMIN_TOKEN>`。
 
-同步会分页扫描 R2（默认每页 100），把缺失的 `object_key` 插入 `images`。已存在的记录跳过。可重复执行，不会产生重复行，也不会改 object key。
+同步会分页扫描 R2（默认每页 100），把缺失的 `object_key` 插入 `images`。已存在的记录跳过。可重复执行，不会产生重复行，也不会改 object key。缺少 `width` / `height` 的记录会读取文件头（Range 前 256 KB）补齐，不会下载整张原图。
 
 ## 环境变量
 
@@ -266,44 +266,46 @@ Query：
   "inserted": 42,
   "skipped": 1208,
   "failed": 0,
+  "sized": 38,
   "hasMore": false
 }
 ```
 
 ### `GET /api/image/:key?w=&h=&fit=&quality=`
 
-缩略图代理。优先用 Cloudflare Images Binding 转成 WebP；失败则返回 R2 原图。
+缩略图代理。登录后再查 Cache API（不含 Cookie），命中则直接返回。未命中时用 Cloudflare Images Binding 转成 WebP，失败则返回 R2 原图。浏览器可缓存（`private, max-age=31536000`）。`/api/images` 等 JSON 接口仍然 `no-store`。
 
 ### `GET /api/config`
 
 `{ "enableDelete": false }`（现在表示永久删除是否开启）
 
-## 当前已实现（Phase 1 + Phase 2 + Phase 3）
+## 当前已实现（Phase 1 + Phase 2 + Phase 3 + 体验优化）
 
 - 只读列出图片，cursor 分页 + 无限滚动
 - 响应式网格、Lightbox、Dark Mode、登录墙
 - 上传、拖拽上传、粘贴截图、最多 3 路并发、真实 XHR 进度
-- Gallery 缩略图 + Lightbox 原图
+- Gallery 缩略图 + Lightbox 原图；缩略图在鉴权后走 Cache API + 浏览器缓存
 - 多选、批量 Copy / Markdown / HTML
-- D1 metadata、R2 → D1 幂等同步
-- 相册（多对多）、收藏、搜索
+- D1 metadata、R2 → D1 幂等同步（含宽高补齐）
+- 相册（多对多）、收藏、搜索、指定相册封面
 - 回收站：软删除、恢复、永久删除（需二次确认）
-- 上传成功后写入 D1 并插入列表
+- 上传成功后写入 D1（含宽高）并插入列表
+- 照片按年/月分组，月份标题吸顶
 
 ## 已知限制
 
-- 回收站不会自动清空。30 天清理留到 Phase 4
+- 回收站不会自动清空。30 天清理仍未做
 - 没有全文搜索 / EXIF / 人脸
 - 缩略图依赖 Images Binding；若账户或运行时不支持，会回退加载原图
-- 网格仍是 1:1，尚未做瀑布流
+- 网格仍是 1:1，尚未做瀑布流（宽高已写入，后续可用来排版）
 - 单用户登录墙
 - D1 有记录但 R2 对象缺失时，卡片显示「图片缺失」
 - 永久删除默认关闭；不要对历史生产对象做删除测试
 
-## Phase 4 建议
+## 后续建议
 
 - 回收站 30 天自动清理
-- 指定相册封面
-- 标签、更丰富的详情
+- 标签、拍摄时间（EXIF）
 - 原图缺失的 metadata 修复工具
 - 瀑布流布局
+- 网格虚拟列表（图片过千张时）
