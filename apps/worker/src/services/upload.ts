@@ -1,7 +1,10 @@
 import {
+  buildUploadDirectory,
   generateObjectKey,
+  HARD_MAX_IMAGE_BYTES,
   isImageKey,
-  MAX_IMAGE_BYTES,
+  parseConvertWebp,
+  parseWebpQuality,
   readImageDimensions,
   resolveUploadMime,
   sanitizeDirectory,
@@ -9,6 +12,8 @@ import {
 } from "@nangua/shared"
 import type { Env } from "../types/env"
 import { insertUploadedImage } from "./imageService"
+import { getUploadSettings } from "./settingsService"
+import { convertToWebpIfRequested } from "./convertWebp"
 
 export class UploadError extends Error {
   readonly code: string
@@ -27,6 +32,8 @@ interface PutNewImageInput {
   declaredType: string
   originalName: string
   directory?: string
+  convertWebp?: unknown
+  quality?: unknown
 }
 
 export async function putNewImage(
@@ -37,14 +44,28 @@ export async function putNewImage(
     throw new UploadError("INVALID_FILE_TYPE", "文件为空", 400)
   }
 
-  if (input.bytes.byteLength > MAX_IMAGE_BYTES) {
-    throw new UploadError("FILE_TOO_LARGE", "图片超过 20 MB 限制", 413)
+  const settings = await getUploadSettings(env)
+  const maxBytes = Math.min(settings.maxImageBytes, HARD_MAX_IMAGE_BYTES)
+  const maxMb = Math.round(maxBytes / (1024 * 1024))
+
+  if (input.bytes.byteLength > maxBytes) {
+    throw new UploadError("FILE_TOO_LARGE", `图片超过 ${maxMb} MB 限制`, 413)
   }
 
-  const mime = resolveUploadMime(input.declaredType, new Uint8Array(input.bytes))
-  if (!mime) {
+  const sourceMime = resolveUploadMime(input.declaredType, new Uint8Array(input.bytes))
+  if (!sourceMime) {
     throw new UploadError("INVALID_FILE_TYPE", "仅支持 JPEG、PNG、WebP、GIF、AVIF 和 BMP 图片", 400)
   }
+
+  const converted = await convertToWebpIfRequested(
+    env,
+    input.bytes,
+    sourceMime,
+    parseConvertWebp(input.convertWebp),
+    parseWebpQuality(input.quality),
+  )
+  const mime = converted.mime
+  const bytes = converted.bytes
 
   let directory: string | undefined
   if (input.directory) {
@@ -53,6 +74,8 @@ export async function putNewImage(
       throw new UploadError("VALIDATION_ERROR", "上传路径无效", 400)
     }
     directory = sanitized
+  } else {
+    directory = buildUploadDirectory(settings.uploadRoot, settings.monthlyFolders)
   }
 
   let key = generateObjectKey(mime, directory)
@@ -69,7 +92,7 @@ export async function putNewImage(
     throw new UploadError("UPLOAD_FAILED", "生成的对象键不是图片", 500)
   }
 
-  const stored = await env.BUCKET.put(key, input.bytes, {
+  const stored = await env.BUCKET.put(key, bytes, {
     httpMetadata: {
       contentType: mime,
     },
@@ -79,7 +102,7 @@ export async function putNewImage(
   })
 
   try {
-    const dimensions = readImageDimensions(new Uint8Array(input.bytes))
+    const dimensions = readImageDimensions(new Uint8Array(bytes))
     return await insertUploadedImage(env, {
       objectKey: stored.key,
       originalName: input.originalName,

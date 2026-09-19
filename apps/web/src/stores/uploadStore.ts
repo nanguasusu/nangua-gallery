@@ -1,5 +1,10 @@
 import { create } from "zustand"
-import { UPLOAD_CONCURRENCY, type ImageItem } from "@nangua/shared"
+import {
+  DEFAULT_UPLOAD_CONCURRENCY,
+  DEFAULT_WEBP_QUALITY,
+  type ImageItem,
+  type WebpQuality,
+} from "@nangua/shared"
 import { ApiError, prependUploadedImage, uploadImage } from "@/lib/api"
 
 export type UploadStatus = "queued" | "uploading" | "success" | "error"
@@ -15,6 +20,12 @@ export interface UploadQueueItem {
 
 interface UploadState {
   items: UploadQueueItem[]
+  concurrency: number
+  convertWebp: boolean
+  webpQuality: WebpQuality
+  setConcurrency: (value: number) => void
+  setConvertWebp: (value: boolean) => void
+  setWebpQuality: (value: WebpQuality) => void
   enqueue: (files: File[]) => void
   retry: (id: string) => void
   remove: (id: string) => void
@@ -31,6 +42,8 @@ async function runUpload(id: string) {
     return
   }
 
+  const { convertWebp, webpQuality } = useUploadStore.getState()
+
   useUploadStore.setState((state) => ({
     items: state.items.map((item) =>
       item.id === id
@@ -40,13 +53,17 @@ async function runUpload(id: string) {
   }))
 
   try {
-    const response = await uploadImage(current.file, (progress) => {
-      useUploadStore.setState((state) => ({
-        items: state.items.map((item) =>
-          item.id === id ? { ...item, progress } : item,
-        ),
-      }))
-    })
+    const response = await uploadImage(
+      current.file,
+      (progress) => {
+        useUploadStore.setState((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, progress } : item,
+          ),
+        }))
+      },
+      { convertWebp, quality: webpQuality },
+    )
 
     prependUploadedImage(response.item)
     useUploadStore.setState((state) => ({
@@ -77,9 +94,9 @@ async function runUpload(id: string) {
 }
 
 function pumpUploads() {
-  const { items } = useUploadStore.getState()
+  const { items, concurrency } = useUploadStore.getState()
   const uploading = items.filter((item) => item.status === "uploading").length
-  const available = UPLOAD_CONCURRENCY - uploading
+  const available = concurrency - uploading
   if (available <= 0) {
     return
   }
@@ -92,6 +109,12 @@ function pumpUploads() {
 
 export const useUploadStore = create<UploadState>((set) => ({
   items: [],
+  concurrency: DEFAULT_UPLOAD_CONCURRENCY,
+  convertWebp: false,
+  webpQuality: DEFAULT_WEBP_QUALITY,
+  setConcurrency: (concurrency) => set({ concurrency }),
+  setConvertWebp: (convertWebp) => set({ convertWebp }),
+  setWebpQuality: (webpQuality) => set({ webpQuality }),
   enqueue: (files) => {
     if (files.length === 0) {
       return

@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import {
-  MAX_IMAGE_BYTES,
+  HARD_MAX_IMAGE_BYTES,
   MULTIPART_OVERHEAD_BYTES,
 } from "@nangua/shared"
 import type { Env } from "../types/env"
@@ -8,6 +8,7 @@ import { jsonError } from "../utils/response"
 import { isUsablePublicBaseUrl } from "../utils/image"
 import { putNewImage, UploadError } from "../services/upload"
 import { requireSession } from "../middleware/auth"
+import { getUploadSettings } from "../services/settingsService"
 
 export const uploadRoutes = new Hono<{ Bindings: Env }>()
 
@@ -23,13 +24,19 @@ uploadRoutes.post("/", async (c) => {
     return jsonError(c, 400, "VALIDATION_ERROR", "请使用表单上传")
   }
 
+  const settings = await getUploadSettings(c.env)
+  const maxBytes = Math.min(settings.maxImageBytes, HARD_MAX_IMAGE_BYTES)
+  const maxMb = Math.round(maxBytes / (1024 * 1024))
+
   const contentLength = Number(c.req.header("content-length") ?? "0")
-  if (Number.isFinite(contentLength) && contentLength > MAX_IMAGE_BYTES + MULTIPART_OVERHEAD_BYTES) {
-    return jsonError(c, 413, "FILE_TOO_LARGE", "图片超过 20 MB 限制")
+  if (Number.isFinite(contentLength) && contentLength > maxBytes + MULTIPART_OVERHEAD_BYTES) {
+    return jsonError(c, 413, "FILE_TOO_LARGE", `图片超过 ${maxMb} MB 限制`)
   }
 
   let file: File | undefined
   let directory: string | undefined
+  let convertWebp: string | undefined
+  let quality: string | undefined
 
   try {
     const body = await c.req.parseBody()
@@ -38,6 +45,12 @@ uploadRoutes.post("/", async (c) => {
     }
     if (typeof body.path === "string" && body.path.length > 0) {
       directory = body.path
+    }
+    if (typeof body.convertWebp === "string") {
+      convertWebp = body.convertWebp
+    }
+    if (typeof body.quality === "string") {
+      quality = body.quality
     }
   } catch (error) {
     console.error("Upload parse failed", error)
@@ -48,8 +61,8 @@ uploadRoutes.post("/", async (c) => {
     return jsonError(c, 400, "VALIDATION_ERROR", "请选择图片")
   }
 
-  if (file.size > MAX_IMAGE_BYTES) {
-    return jsonError(c, 413, "FILE_TOO_LARGE", "图片超过 20 MB 限制")
+  if (file.size > maxBytes) {
+    return jsonError(c, 413, "FILE_TOO_LARGE", `图片超过 ${maxMb} MB 限制`)
   }
 
   try {
@@ -58,6 +71,8 @@ uploadRoutes.post("/", async (c) => {
       declaredType: file.type,
       originalName: file.name || "image",
       directory,
+      convertWebp,
+      quality,
     })
 
     return c.json({ item }, 201)

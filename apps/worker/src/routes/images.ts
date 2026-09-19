@@ -4,7 +4,7 @@ import { jsonError } from "../utils/response"
 import { isUsablePublicBaseUrl, parseLimit } from "../utils/image"
 import { requireSession } from "../middleware/auth"
 import { handleServiceError } from "../utils/service-error"
-import { ImageServiceError, listImagesFromDb, normalizeImageIds, permanentlyDeleteImages, restoreImages, setFavorite, setFavoriteMany, trashImages } from "../services/imageService"
+import { ImageServiceError, ensureShortIds, listImagesFromDb, normalizeImageIds, permanentlyDeleteImages, restoreImages, setFavorite, setFavoriteMany, trashImages } from "../services/imageService"
 
 export const imagesRoutes = new Hono<{ Bindings: Env }>()
 
@@ -75,6 +75,16 @@ imagesRoutes.post("/favorite", async (c) => {
     return c.json({ updated, favorite: body.favorite })
   } catch (error) {
     return handleServiceError(c, error, "无法更新收藏")
+  }
+})
+
+imagesRoutes.post("/short-links", async (c) => {
+  try {
+    const body = await parseObjectBody(c)
+    const assigned = await ensureShortIds(c.env, normalizeImageIds(body.imageIds))
+    return c.json({ shortIds: assigned })
+  } catch (error) {
+    return handleServiceError(c, error, "无法创建短链接")
   }
 })
 

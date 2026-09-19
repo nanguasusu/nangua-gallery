@@ -1,5 +1,6 @@
 import {
-  MAX_IMAGE_BYTES,
+  DEFAULT_MAX_IMAGE_BYTES,
+  formatMaxBytesLabel,
   normalizeImageMime,
   resolveUploadMime,
 } from "@nangua/shared"
@@ -10,19 +11,23 @@ export interface FileRejection {
   message: string
 }
 
-export async function partitionImageFiles(files: File[]): Promise<{
+export async function partitionImageFiles(
+  files: File[],
+  maxBytes = DEFAULT_MAX_IMAGE_BYTES,
+): Promise<{
   accepted: File[]
   rejected: FileRejection[]
 }> {
   const accepted: File[] = []
   const rejected: FileRejection[] = []
+  const maxLabel = formatMaxBytesLabel(maxBytes)
 
   for (const file of files) {
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (file.size > maxBytes) {
       rejected.push({
         file,
         code: "FILE_TOO_LARGE",
-        message: "图片超过 20 MB 限制",
+        message: `图片超过 ${maxLabel} 限制`,
       })
       continue
     }

@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth"
 import { configRoutes } from "./routes/config"
 import { albumsRoutes } from "./routes/albums"
 import { adminRoutes } from "./routes/admin"
+import { shortRoutes } from "./routes/short"
 import { jsonError } from "./utils/response"
 import { serveApp } from "./utils/app-shell"
 
@@ -44,6 +45,7 @@ app.route("/api/images", deleteRoutes)
 app.route("/api/images", uploadRoutes)
 app.route("/api/images", imagesRoutes)
 app.route("/api/image", transformRoutes)
+app.route("/s", shortRoutes)
 
 app.get("/api/health", (c) => c.json({ ok: true }))
 

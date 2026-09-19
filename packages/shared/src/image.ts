@@ -26,6 +26,7 @@ export interface ImageItem {
   favorite: boolean
   deletedAt?: string | null
   albums?: AlbumSummary[]
+  shortId?: string
 }
 
 export interface AlbumSummary {
@@ -69,6 +70,11 @@ export interface SyncResult {
 
 export interface GalleryConfig {
   enableDelete: boolean
+  uploadRoot: string
+  monthlyFolders: boolean
+  maxImageBytes: number
+  uploadConcurrency: 1 | 3 | 5
+  uploadDirectoryPreview: string
 }
 
 export interface ApiErrorBody {

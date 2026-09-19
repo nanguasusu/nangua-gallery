@@ -2,9 +2,14 @@ import type { Context } from "hono"
 import { jsonError } from "./response"
 import { ImageServiceError } from "../services/imageService"
 import { AlbumServiceError } from "../services/albumService"
+import { SettingsError } from "../services/settingsService"
 
 export function handleServiceError(c: Context, error: unknown, fallbackMessage: string) {
-  if (error instanceof ImageServiceError || error instanceof AlbumServiceError) {
+  if (
+    error instanceof ImageServiceError ||
+    error instanceof AlbumServiceError ||
+    error instanceof SettingsError
+  ) {
     return jsonError(c, error.status, error.code, error.message)
   }
 

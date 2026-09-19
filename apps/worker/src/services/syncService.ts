@@ -4,7 +4,7 @@ import type { Env } from "../types/env"
 import { getDb } from "../db/client"
 import { images } from "../db/schema"
 import { nowIso } from "../db/map"
-import { metadataFromR2Object } from "./imageService"
+import { metadataFromR2Object, ensureShortIds } from "./imageService"
 
 const DEFAULT_PAGE_SIZE = 100
 const DEFAULT_MAX_PAGES = 40
@@ -53,6 +53,7 @@ export async function syncR2ToD1(
           objectKey: images.objectKey,
           width: images.width,
           height: images.height,
+          shortId: images.shortId,
         })
         .from(images)
         .where(inArray(images.objectKey, keys))
@@ -114,6 +115,11 @@ export async function syncR2ToD1(
             .where(eq(images.id, update.id))
           sized += 1
         }
+      }
+
+      const missingShort = existing.filter((row) => !row.shortId).map((row) => row.id)
+      if (missingShort.length > 0) {
+        await ensureShortIds(env, missingShort.slice(0, 100))
       }
     }
 

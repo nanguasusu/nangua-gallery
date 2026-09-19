@@ -1,8 +1,10 @@
-import type { ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
 import { useClipboardUpload } from "@/hooks/useClipboardUpload"
 import { useDropUpload } from "@/hooks/useDropUpload"
+import { useConfig } from "@/hooks/useConfig"
 import { UploadDialog } from "@/components/upload/UploadDialog"
 import { UploadQueue } from "@/components/upload/UploadQueue"
+import { useUploadStore } from "@/stores/uploadStore"
 
 interface GalleryShellProps {
   children: ReactNode
@@ -11,6 +13,13 @@ interface GalleryShellProps {
 export function GalleryShell({ children }: GalleryShellProps) {
   const { dragging } = useDropUpload(true)
   useClipboardUpload(true)
+  const config = useConfig()
+
+  useEffect(() => {
+    if (config.data?.uploadConcurrency) {
+      useUploadStore.getState().setConcurrency(config.data.uploadConcurrency)
+    }
+  }, [config.data?.uploadConcurrency])
 
   return (
     <>

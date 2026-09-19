@@ -1,13 +1,23 @@
 import { X } from "lucide-react"
+import { DEFAULT_WEBP_QUALITY, WEBP_QUALITY_OPTIONS, formatMaxBytesLabel } from "@nangua/shared"
 import { Button } from "@/components/ui/button"
+import { OptionPills } from "@/components/shared/OptionPills"
 import { UploadDropzone } from "@/components/upload/UploadDropzone"
 import { useGalleryStore } from "@/stores/galleryStore"
+import { useUploadStore } from "@/stores/uploadStore"
 import { useUploadImages } from "@/hooks/useUploadImages"
+import { useConfig } from "@/hooks/useConfig"
 
 export function UploadDialog() {
   const open = useGalleryStore((state) => state.uploadDialogOpen)
   const closeUploadDialog = useGalleryStore((state) => state.closeUploadDialog)
+  const convertWebp = useUploadStore((state) => state.convertWebp)
+  const webpQuality = useUploadStore((state) => state.webpQuality)
+  const setConvertWebp = useUploadStore((state) => state.setConvertWebp)
+  const setWebpQuality = useUploadStore((state) => state.setWebpQuality)
   const { queueFiles } = useUploadImages()
+  const config = useConfig()
+  const maxLabel = formatMaxBytesLabel(config.data?.maxImageBytes ?? 20 * 1024 * 1024)
 
   if (!open) {
     return null
@@ -47,8 +57,32 @@ export function UploadDialog() {
             }}
           />
         </div>
+        <label className="mt-4 flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={convertWebp}
+            onChange={(event) => setConvertWebp(event.target.checked)}
+            className="size-4 accent-primary"
+          />
+          转为 WebP
+        </label>
+        {convertWebp ? (
+          <div className="mt-3">
+            <p className="text-sm font-medium">画质</p>
+            <OptionPills
+              value={webpQuality}
+              options={WEBP_QUALITY_OPTIONS}
+              onChange={setWebpQuality}
+              ariaLabel="WebP 画质"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              GIF 和已经是 WebP / AVIF 的文件不会转换。失败时保存原文件。
+            </p>
+          </div>
+        ) : null}
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          支持 JPEG、PNG、WebP、GIF、AVIF、BMP，单张最大 20 MB。
+          支持 JPEG、PNG、WebP、GIF、AVIF、BMP，单张最大 {maxLabel}。
+          {convertWebp ? ` 画质 ${webpQuality || DEFAULT_WEBP_QUALITY}。` : ""}
         </p>
       </div>
     </div>

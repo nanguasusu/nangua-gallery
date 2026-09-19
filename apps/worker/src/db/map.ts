@@ -61,5 +61,6 @@ export function toImageItem(
     favorite: row.favorite,
     deletedAt: row.deletedAt,
     albums: albumSummaries.length > 0 ? albumSummaries : undefined,
+    shortId: row.shortId ?? undefined,
   }
 }

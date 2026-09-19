@@ -1,8 +1,9 @@
-import { Code2, Copy, FileCode2, FolderPlus, Heart, ImageIcon, RotateCcw, Trash2 } from "lucide-react"
+import { Code2, Copy, FileCode2, FolderPlus, Heart, ImageIcon, Link2, RotateCcw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatHtml, formatMarkdown, formatPlainUrls } from "@nangua/shared"
 import type { ImageItem } from "@/types/image"
 import { Button } from "@/components/ui/button"
+import { copyShortLinks } from "@/lib/copy-short-links"
 
 export type GalleryMode = "photos" | "favorites" | "album" | "trash"
 
@@ -84,6 +85,15 @@ export function GallerySelectionBar({
           >
             <Code2 />
             HTML
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => void copyShortLinks(selected)}
+          >
+            <Link2 />
+            短链接
           </Button>
           {mode !== "trash" ? (
             <>

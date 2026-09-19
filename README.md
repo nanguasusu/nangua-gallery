@@ -191,11 +191,11 @@ npx wrangler secret put ADMIN_TOKEN
 git push origin main
 ```
 
-到仓库的 **Actions** 页看部署是否成功。改表结构时在本地跑 `npm run db:migrate:remote`，GitHub 自动部署只更新 Worker 代码。
+到仓库的 **Actions** 页看部署是否成功。改表结构时在本地跑 `npm run db:migrate:remote`，GitHub 自动部署只更新 Worker 代码。这次新增了 `gallery_settings` 和 `images.short_id`，部署后需要执行一次 remote migration。
 
 ## API
 
-所有 `/api/images*`、`/api/albums*`、`/api/image*` 都需要登录 cookie。`POST /api/admin/sync` 需要登录或 `ADMIN_TOKEN`。
+所有 `/api/images*`、`/api/albums*`、`/api/image*`、`GET/PATCH /api/config` 都需要登录 cookie。`POST /api/admin/sync` 需要登录或 `ADMIN_TOKEN`。`GET /s/:id` 公开跳转，不需要登录。
 
 列表响应继续使用 `{ items, cursor, hasMore }`。错误继续使用 `{ error: { code, message } }`。
 
@@ -215,9 +215,38 @@ Query：
 
 ### `POST /api/images`
 
-`multipart/form-data`，字段 `file`，可选 `path`（目录前缀）。
+`multipart/form-data`，字段 `file`，可选 `path`（目录前缀）、`convertWebp=true`、`quality`（60/75/80/90）。
 
-成功后：R2 put 新 UUID key，再插入 D1。如果 D1 失败，会补偿删除**刚刚生成的新对象**，不会动历史文件。
+成功后：按设置生成新 UUID key（默认 `{uploadRoot}/YYYY/MM/<uuid>.<ext>`），可选转为 WebP，再插入 D1（含短链 ID）。如果 D1 失败，会补偿删除**刚刚生成的新对象**，不会动历史文件。GIF / WebP / AVIF 不会被转换。
+
+### `PATCH /api/config`
+
+上传偏好：`uploadRoot`、`monthlyFolders`、`maxImageBytes`（10/20/50 MB）、`uploadConcurrency`（1/3/5）。存在 D1，不改已有 R2 对象。
+
+### `GET /api/config`
+
+```json
+{
+  "enableDelete": false,
+  "uploadRoot": "uploads",
+  "monthlyFolders": true,
+  "maxImageBytes": 20971520,
+  "uploadConcurrency": 3,
+  "uploadDirectoryPreview": "uploads/2026/09/<uuid>.jpg"
+}
+```
+
+### `POST /api/images/short-links`
+
+```json
+{ "imageIds": ["..."] }
+```
+
+为还没有短链的图片补齐 `short_id`。
+
+### `GET /s/:id`
+
+公开 302 到 `PUBLIC_IMAGE_BASE_URL` 上的原图。不改 object key。
 
 ### `PATCH /api/images/:id`
 
@@ -275,22 +304,20 @@ Query：
 
 缩略图代理。登录后再查 Cache API（不含 Cookie），命中则直接返回。未命中时用 Cloudflare Images Binding 转成 WebP，失败则返回 R2 原图。浏览器可缓存（`private, max-age=31536000`）。`/api/images` 等 JSON 接口仍然 `no-store`。
 
-### `GET /api/config`
-
-`{ "enableDelete": false }`（现在表示永久删除是否开启）
-
 ## 当前已实现（Phase 1 + Phase 2 + Phase 3 + 体验优化）
 
 - 只读列出图片，cursor 分页 + 无限滚动
 - 响应式网格、Lightbox、Dark Mode、登录墙
-- 上传、拖拽上传、粘贴截图、最多 3 路并发、真实 XHR 进度
+- 上传、拖拽上传、粘贴截图、设置里可改并发和大小
+- 上传时可选择转为 WebP 并选画质
 - Gallery 缩略图 + Lightbox 原图；缩略图在鉴权后走 Cache API + 浏览器缓存
-- 多选、批量 Copy / Markdown / HTML
-- D1 metadata、R2 → D1 幂等同步（含宽高补齐）
+- 多选、批量 Copy / Markdown / HTML / 短链接
+- D1 metadata、R2 → D1 幂等同步（含宽高和短链补齐）
 - 相册（多对多）、收藏、搜索、指定相册封面
 - 回收站：软删除、恢复、永久删除（需二次确认）
-- 上传成功后写入 D1（含宽高）并插入列表
+- 上传成功后写入 D1（含宽高、短链）并插入列表
 - 照片按年/月分组，月份标题吸顶
+- 公开短链 `/s/:id` 跳转到原图，不改 object key
 
 ## 已知限制
 

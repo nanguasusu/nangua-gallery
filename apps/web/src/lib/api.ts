@@ -7,6 +7,7 @@ import type {
   ImageListResponse,
   ImageUploadResponse,
   SyncResult,
+  UploadConcurrency,
 } from "@/types/image"
 import { queryClient } from "@/lib/query-client"
 import { queryKeys, type ImageListFilter } from "@/lib/query-keys"
@@ -93,6 +94,19 @@ export async function fetchConfig(signal?: AbortSignal): Promise<GalleryConfig> 
   return apiJson("/api/config", { method: "GET", signal }, "无法加载配置")
 }
 
+export async function updateConfig(input: {
+  uploadRoot?: string
+  monthlyFolders?: boolean
+  maxImageBytes?: number
+  uploadConcurrency?: UploadConcurrency
+}): Promise<GalleryConfig> {
+  return apiJson("/api/config", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  }, "无法保存设置")
+}
+
 export async function login(username: string, password: string): Promise<void> {
   await apiJson("/api/login", {
     method: "POST",
@@ -135,6 +149,7 @@ export async function fetchImages(
 export function uploadImage(
   file: File,
   onProgress?: (ratio: number | null) => void,
+  options?: { convertWebp?: boolean; quality?: number },
 ): Promise<ImageUploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -187,6 +202,10 @@ export function uploadImage(
 
     const form = new FormData()
     form.append("file", file)
+    if (options?.convertWebp) {
+      form.append("convertWebp", "true")
+      form.append("quality", String(options.quality ?? 80))
+    }
     xhr.send(form)
   })
 }
@@ -293,6 +312,15 @@ export async function removeImagesFromAlbum(albumId: string, imageIds: string[])
     body: JSON.stringify({ imageIds }),
   }, "无法从相册移除")
   return body.removed
+}
+
+export async function ensureShortIds(imageIds: string[]): Promise<Record<string, string>> {
+  const body = await apiJson<{ shortIds: Record<string, string> }>("/api/images/short-links", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageIds }),
+  }, "无法创建短链接")
+  return body.shortIds
 }
 
 export async function syncR2Metadata(cursor?: string): Promise<SyncResult> {

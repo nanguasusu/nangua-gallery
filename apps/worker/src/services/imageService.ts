@@ -3,6 +3,7 @@ import {
   escapeLike,
   filenameFromKey,
   mimeFromExtension,
+  newShortId,
   type ImageItem,
   type ImageListResponse,
 } from "@nangua/shared"
@@ -152,6 +153,7 @@ export async function insertUploadedImage(
     updatedAt: timestamp,
     favorite: false,
     deletedAt: null,
+    shortId: await allocateShortId(env),
   }
 
   await db.insert(images).values(row)
@@ -282,6 +284,7 @@ export function metadataFromR2Object(object: R2Object) {
     updatedAt: nowIso(),
     favorite: false,
     deletedAt: null,
+    shortId: newShortId(),
   }
 }
 
@@ -298,4 +301,45 @@ export function normalizeImageIds(ids: unknown): string[] {
     throw new ImageServiceError("VALIDATION_ERROR", "一次最多处理 100 张图片", 400)
   }
   return unique
+}
+
+export async function getImageByShortId(env: Env, shortId: string) {
+  const db = getDb(env)
+  const [row] = await db.select().from(images).where(eq(images.shortId, shortId)).limit(1)
+  return row ?? null
+}
+
+export async function ensureShortIds(env: Env, imageIds: string[]): Promise<Record<string, string>> {
+  const ids = normalizeImageIds(imageIds)
+  const db = getDb(env)
+  const rows = await db
+    .select({ id: images.id, shortId: images.shortId })
+    .from(images)
+    .where(inArray(images.id, ids))
+
+  const assigned: Record<string, string> = {}
+  for (const row of rows) {
+    if (row.shortId) {
+      assigned[row.id] = row.shortId
+      continue
+    }
+    const shortId = await allocateShortId(env)
+    await db.update(images).set({ shortId, updatedAt: nowIso() }).where(eq(images.id, row.id))
+    assigned[row.id] = shortId
+  }
+
+  return assigned
+}
+
+async function allocateShortId(env: Env): Promise<string> {
+  const db = getDb(env)
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const candidate = newShortId()
+    const [existing] = await db.select({ id: images.id }).from(images).where(eq(images.shortId, candidate)).limit(1)
+    if (!existing) {
+      return candidate
+    }
+  }
+
+  throw new ImageServiceError("UPLOAD_FAILED", "无法分配短链接", 500)
 }

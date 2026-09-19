@@ -15,6 +15,7 @@ export const images = sqliteTable(
     updatedAt: text("updated_at").notNull(),
     favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
     deletedAt: text("deleted_at"),
+    shortId: text("short_id").unique(),
   },
   (table) => [
     index("images_created_at_idx").on(table.createdAt),
@@ -23,6 +24,15 @@ export const images = sqliteTable(
     index("images_deleted_at_idx").on(table.deletedAt),
   ],
 )
+
+export const gallerySettings = sqliteTable("gallery_settings", {
+  id: text("id").primaryKey(),
+  uploadRoot: text("upload_root").notNull(),
+  monthlyFolders: integer("monthly_folders", { mode: "boolean" }).notNull(),
+  maxImageBytes: integer("max_image_bytes").notNull(),
+  uploadConcurrency: integer("upload_concurrency").notNull(),
+  updatedAt: text("updated_at").notNull(),
+})
 
 export const albums = sqliteTable("albums", {
   id: text("id").primaryKey(),

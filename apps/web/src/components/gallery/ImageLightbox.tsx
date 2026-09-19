@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, Code2, Copy, FileCode2, Heart, ImageIcon, ImageOff, RotateCcw, Trash2, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Code2, Copy, FileCode2, Heart, ImageIcon, ImageOff, Link2, RotateCcw, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { formatHtml, formatMarkdown } from "@nangua/shared"
 import type { ImageItem } from "@/types/image"
 import { Button } from "@/components/ui/button"
 import { formatBytes, formatDeletedAt, formatDimensions, formatUploadedAt } from "@/lib/format"
+import { copyShortLinks } from "@/lib/copy-short-links"
 import type { GalleryMode } from "@/components/gallery/GallerySelectionBar"
 
 interface ImageLightboxProps {
@@ -242,6 +243,16 @@ export function ImageLightbox({
             >
               <Copy />
               复制链接
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void copyShortLinks([image])}
+              className="bg-white/10 text-white hover:bg-white/16"
+            >
+              <Link2 />
+              短链接
             </Button>
             <Button
               type="button"
