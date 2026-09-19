@@ -174,6 +174,25 @@ npx wrangler secret put ADMIN_TOKEN
 | `npm run db:migrate:remote` | 把 migration 应用到远程 D1 |
 | `npm run deploy` | 构建并部署到 Cloudflare |
 
+## GitHub 自动部署
+
+现有 Worker `nangua-gallery` 继续用，不要再新建一个。推送到 GitHub 的 `main` 后，GitHub Actions 会构建并 `wrangler deploy` 到这个 Worker。R2 / D1 / 登录 secret 都还在 Cloudflare 上。
+
+一次性配置：
+
+1. 打开 [Cloudflare API tokens](https://dash.cloudflare.com/profile/api-tokens)
+2. Create Token → 用 **Edit Cloudflare Workers** 模板（需要 Workers 和 D1 权限）
+3. 打开 GitHub 仓库 **Settings → Secrets and variables → Actions**
+4. 新增 secret：`CLOUDFLARE_API_TOKEN` = 刚才生成的 token
+
+之后：
+
+```bash
+git push origin main
+```
+
+到仓库的 **Actions** 页看部署是否成功。
+
 ## API
 
 所有 `/api/images*`、`/api/albums*`、`/api/image*` 都需要登录 cookie。`POST /api/admin/sync` 需要登录或 `ADMIN_TOKEN`。

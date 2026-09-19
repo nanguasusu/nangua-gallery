@@ -10,6 +10,7 @@
   "name": "nangua-gallery",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-19",
+  "account_id": "434bb94329168bc60e22384a60c2785c",
   "r2_buckets": [
     {
       "binding": "BUCKET",
