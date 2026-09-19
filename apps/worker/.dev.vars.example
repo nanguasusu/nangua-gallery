@@ -1,0 +1,12 @@
+# Local-only Worker variables. Copy to .dev.vars and edit.
+# Never put R2 access keys or API tokens here.
+# Production login values must be set with `wrangler secret put`.
+
+PUBLIC_IMAGE_BASE_URL=https://img.nnann.cc
+GALLERY_USERNAME=ling
+GALLERY_PASSWORD=change-me
+SESSION_SECRET=generate-a-long-random-string
+ENABLE_DELETE=false
+# Optional. If set, POST /api/admin/sync also accepts Authorization: Bearer <token>.
+# Logged-in session can still run sync from Settings.
+# ADMIN_TOKEN=

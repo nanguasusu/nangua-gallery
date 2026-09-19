@@ -1,0 +1,47 @@
+/**
+ * Nangua Gallery Worker
+ *
+ * Existing R2 objects in `nanguaimg` must keep their keys and public URLs.
+ * D1 stores metadata only. Uploads create new UUID keys. Permanent R2 delete
+ * requires ENABLE_DELETE=true and only applies to items already in Trash.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nangua-gallery",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-19",
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "nanguaimg",
+      "remote": true
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nangua-gallery",
+      "database_id": "6412a227-7cef-4385-bd83-d6e7d135f3df",
+      "migrations_dir": "src/db/migrations"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "cache": {
+    "enabled": false
+  },
+  "vars": {
+    "PUBLIC_IMAGE_BASE_URL": "https://img.nnann.cc",
+    "ENABLE_DELETE": "false"
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "../web/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "observability": {
+    "enabled": true
+  }
+}

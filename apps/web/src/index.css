@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #e8f3fb;
+  --foreground: #16324a;
+  --card: #ffffff;
+  --card-foreground: #16324a;
+  --muted: #d7eaf6;
+  --muted-foreground: #5e87a3;
+  --accent: #cde4f5;
+  --accent-foreground: #16324a;
+  --primary: #3a8fd0;
+  --primary-foreground: #ffffff;
+  --border: rgb(58 143 208 / 0.16);
+  --ring: #3a8fd0;
+  --sidebar: rgb(232 243 251 / 0.82);
+  --destructive: #d12b2b;
+  --radius: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(58 143 208 / 0.08), 0 8px 24px rgb(58 143 208 / 0.08);
+}
+
+.dark {
+  --background: #0c1a26;
+  --foreground: #e6f2fa;
+  --card: #152636;
+  --card-foreground: #e6f2fa;
+  --muted: #1a3044;
+  --muted-foreground: #8aa9c0;
+  --accent: #1e3a52;
+  --accent-foreground: #e6f2fa;
+  --primary: #7ec4f0;
+  --primary-foreground: #0c1a26;
+  --border: rgb(126 196 240 / 0.14);
+  --ring: #7ec4f0;
+  --sidebar: rgb(12 26 38 / 0.82);
+  --destructive: #ff6b6b;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.28), 0 10px 28px rgb(12 26 38 / 0.45);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-destructive: var(--destructive);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --shadow-card: var(--shadow-card);
+}
+
+html,
+body,
+#root {
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+* {
+  border-color: var(--border);
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}

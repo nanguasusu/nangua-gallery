@@ -1,0 +1,30 @@
+{
+  "name": "nangua-gallery",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Private Apple Photos-style gallery for an existing Cloudflare R2 image host",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,worker -c cyan,magenta \"npm run dev -w @nangua/web\" \"npm run dev -w @nangua/worker\"",
+    "dev:web": "npm run dev -w @nangua/web",
+    "dev:worker": "npm run dev -w @nangua/worker",
+    "dev:worker:remote": "npm run dev:remote -w @nangua/worker",
+    "build": "npm run build -w @nangua/web && npm run build -w @nangua/worker",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "seed:local": "npm run seed:local -w @nangua/worker",
+    "db:generate": "npm run db:generate -w @nangua/worker",
+    "db:migrate:local": "npm run db:migrate:local -w @nangua/worker",
+    "db:migrate:remote": "npm run db:migrate:remote -w @nangua/worker",
+    "deploy": "npm run build -w @nangua/web && npm run deploy -w @nangua/worker"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#E8F3FB" />
+    <meta name="description" content="南瓜相册 — 基于现有 Cloudflare R2 图床的私人相册" />
+    <title>南瓜相册</title>
+    <script>
+      try {
+        const stored = JSON.parse(localStorage.getItem("nangua-gallery-ui") || "{}")
+        if (stored.state && stored.state.theme === "dark") {
+          document.documentElement.classList.add("dark")
+          document.documentElement.style.colorScheme = "dark"
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#0C1A26")
+        }
+      } catch (error) {
+        // Ignore malformed local UI state.
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
