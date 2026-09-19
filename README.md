@@ -191,7 +191,7 @@ npx wrangler secret put ADMIN_TOKEN
 git push origin main
 ```
 
-到仓库的 **Actions** 页看部署是否成功。
+到仓库的 **Actions** 页看部署是否成功。改表结构时在本地跑 `npm run db:migrate:remote`，GitHub 自动部署只更新 Worker 代码。
 
 ## API
 
