@@ -82,7 +82,7 @@ async function runUpload(id: string) {
         prependUploadedImage(response.item, { albumId: current.albumId })
         void queryClient.invalidateQueries({ queryKey: queryKeys.albums })
         void queryClient.invalidateQueries({ queryKey: queryKeys.album(current.albumId) })
-      } catch (caught) {
+      } catch {
         toast.error(`${current.file.name || "Image"}: 已上传到资料库，但没能加入当前相册`)
       }
     }
