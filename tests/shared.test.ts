@@ -98,6 +98,14 @@ describe("copy formats", () => {
       '<center><img style="width:400px"',
     )
   })
+
+  it("can include a sanitized title caption", () => {
+    expect(
+      formatHtml([urls[0]], { titles: ['miku <大头> & "ok"'] }),
+    ).toBe(
+      `<center><img style="width:400px" src="${urls[0]}" alt="miku &lt;大头&gt; &amp; &quot;ok&quot;" title="miku &lt;大头&gt; &amp; &quot;ok&quot;" loading="lazy" /><p style="margin:8px 0 0;text-align:center">miku &lt;大头&gt; &amp; &quot;ok&quot;</p></center>`,
+    )
+  })
 })
 
 function buildDatetimeTiff(): Uint8Array {

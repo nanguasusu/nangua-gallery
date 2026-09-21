@@ -35,6 +35,7 @@ export {
   formatPlainUrls,
   formatMarkdown,
   formatHtml,
+  copyTitleFromFilename,
 } from "./copy"
 export {
   DEFAULT_MAX_IMAGE_BYTES,

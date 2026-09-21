@@ -16,6 +16,7 @@ import { OptionPills } from "@/components/shared/OptionPills"
 import { syncR2Metadata, updateConfig } from "@/lib/api"
 import { queryKeys } from "@/lib/query-keys"
 import { useConfig } from "@/hooks/useConfig"
+import { useCopyStore } from "@/stores/copyStore"
 import { useUploadStore } from "@/stores/uploadStore"
 import type { SyncResult } from "@/types/image"
 
@@ -33,6 +34,8 @@ export function SettingsPage() {
   const webpQuality = useUploadStore((state) => state.webpQuality)
   const setConvertWebp = useUploadStore((state) => state.setConvertWebp)
   const setWebpQuality = useUploadStore((state) => state.setWebpQuality)
+  const htmlIncludeTitle = useCopyStore((state) => state.htmlIncludeTitle)
+  const setHtmlIncludeTitle = useCopyStore((state) => state.setHtmlIncludeTitle)
 
   useEffect(() => {
     if (!config.data) {
@@ -185,6 +188,24 @@ export function SettingsPage() {
             {saveUpload.error instanceof Error ? saveUpload.error.message : "无法保存设置"}
           </p>
         ) : null}
+      </div>
+
+      <div className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--shadow-card)]">
+        <h3 className="font-medium">复制</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          这些选项改完立刻生效，并记在当前浏览器。
+        </p>
+        <p className="mt-4 text-sm font-medium">HTML 包含标题</p>
+        <OptionPills
+          value={htmlIncludeTitle ? "on" : "off"}
+          options={["on", "off"]}
+          labels={{ on: "开启", off: "关闭" }}
+          onChange={(value) => setHtmlIncludeTitle(value === "on")}
+          ariaLabel="HTML 包含标题"
+        />
+        <p className="mt-2 text-xs text-muted-foreground">
+          开启后复制 HTML 会在图片正下方居中显示文件名（去掉后缀），并写入图片的 alt / title。
+        </p>
       </div>
 
       <div className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--shadow-card)]">
