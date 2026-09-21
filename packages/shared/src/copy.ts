@@ -27,7 +27,7 @@ export function formatHtml(urls: string[], options: { width?: number } = {}): st
   return urls
     .map(
       (url) =>
-        `<img style="display:block;width:${width}px;margin:0 auto" src="${url}" loading="lazy" />`,
+        `<center><img style="width:${width}px" src="${url}" loading="lazy" /></center>`,
     )
     .join("\n")
 }
