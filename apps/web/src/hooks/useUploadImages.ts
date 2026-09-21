@@ -4,11 +4,13 @@ import { useGalleryStore } from "@/stores/galleryStore"
 import { useUploadStore } from "@/stores/uploadStore"
 import { partitionImageFiles } from "@/lib/file-validation"
 import { useConfig } from "@/hooks/useConfig"
+import { useUploadTargetAlbum } from "@/hooks/useUploadTargetAlbum"
 import { DEFAULT_MAX_IMAGE_BYTES } from "@nangua/shared"
 
 export function useUploadImages() {
   const enqueue = useUploadStore((state) => state.enqueue)
   const openUploadDialog = useGalleryStore((state) => state.openUploadDialog)
+  const { albumId } = useUploadTargetAlbum()
   const config = useConfig()
   const maxBytes = config.data?.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES
 
@@ -23,11 +25,11 @@ export function useUploadImages() {
       return
     }
 
-    enqueue(accepted)
+    enqueue(accepted, albumId)
     if (options?.openDialog !== false) {
       openUploadDialog()
     }
-  }, [enqueue, openUploadDialog, maxBytes])
+  }, [enqueue, openUploadDialog, maxBytes, albumId])
 
   return { queueFiles }
 }

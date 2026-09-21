@@ -5,6 +5,7 @@ import { useConfig } from "@/hooks/useConfig"
 import { UploadDialog } from "@/components/upload/UploadDialog"
 import { UploadQueue } from "@/components/upload/UploadQueue"
 import { useUploadStore } from "@/stores/uploadStore"
+import { useUploadTargetAlbum } from "@/hooks/useUploadTargetAlbum"
 
 interface GalleryShellProps {
   children: ReactNode
@@ -14,6 +15,7 @@ export function GalleryShell({ children }: GalleryShellProps) {
   const { dragging } = useDropUpload(true)
   useClipboardUpload(true)
   const config = useConfig()
+  const { albumName } = useUploadTargetAlbum()
 
   useEffect(() => {
     if (config.data?.uploadConcurrency) {
@@ -25,9 +27,11 @@ export function GalleryShell({ children }: GalleryShellProps) {
     <>
       {children}
       {dragging ? (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="pointer-events-none fixed inset-0 z-[55] flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="rounded-[24px] bg-card px-10 py-8 text-center shadow-[var(--shadow-card)]">
-            <p className="text-[20px] font-semibold">松开即可上传</p>
+            <p className="text-[20px] font-semibold">
+              {albumName ? `松开即可上传到「${albumName}」` : "松开即可上传"}
+            </p>
           </div>
         </div>
       ) : null}

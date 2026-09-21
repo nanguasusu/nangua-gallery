@@ -13,12 +13,14 @@ export function UploadDropzone({ onFiles }: UploadDropzoneProps) {
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
+    event.stopPropagation()
     setOver(false)
     onFiles([...event.dataTransfer.files])
   }
 
   return (
     <div
+      data-upload-dropzone
       onDragEnter={(event) => {
         event.preventDefault()
         setOver(true)

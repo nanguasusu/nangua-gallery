@@ -1,11 +1,12 @@
 import { X } from "lucide-react"
-import { DEFAULT_WEBP_QUALITY, WEBP_QUALITY_OPTIONS, formatMaxBytesLabel } from "@nangua/shared"
+import { Link } from "react-router-dom"
+import { DEFAULT_WEBP_QUALITY, formatMaxBytesLabel } from "@nangua/shared"
 import { Button } from "@/components/ui/button"
-import { OptionPills } from "@/components/shared/OptionPills"
 import { UploadDropzone } from "@/components/upload/UploadDropzone"
 import { useGalleryStore } from "@/stores/galleryStore"
 import { useUploadStore } from "@/stores/uploadStore"
 import { useUploadImages } from "@/hooks/useUploadImages"
+import { useUploadTargetAlbum } from "@/hooks/useUploadTargetAlbum"
 import { useConfig } from "@/hooks/useConfig"
 
 export function UploadDialog() {
@@ -13,9 +14,8 @@ export function UploadDialog() {
   const closeUploadDialog = useGalleryStore((state) => state.closeUploadDialog)
   const convertWebp = useUploadStore((state) => state.convertWebp)
   const webpQuality = useUploadStore((state) => state.webpQuality)
-  const setConvertWebp = useUploadStore((state) => state.setConvertWebp)
-  const setWebpQuality = useUploadStore((state) => state.setWebpQuality)
   const { queueFiles } = useUploadImages()
+  const { albumName } = useUploadTargetAlbum()
   const config = useConfig()
   const maxLabel = formatMaxBytesLabel(config.data?.maxImageBytes ?? 20 * 1024 * 1024)
 
@@ -45,6 +45,9 @@ export function UploadDialog() {
             <h2 id="upload-title" className="mt-1 text-[20px] font-semibold">
               上传图片
             </h2>
+            {albumName ? (
+              <p className="mt-1 text-sm text-muted-foreground">将加入相册「{albumName}」</p>
+            ) : null}
           </div>
           <Button type="button" variant="ghost" size="icon" aria-label="关闭" onClick={closeUploadDialog}>
             <X />
@@ -57,32 +60,13 @@ export function UploadDialog() {
             }}
           />
         </div>
-        <label className="mt-4 flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={convertWebp}
-            onChange={(event) => setConvertWebp(event.target.checked)}
-            className="size-4 accent-primary"
-          />
-          转为 WebP
-        </label>
-        {convertWebp ? (
-          <div className="mt-3">
-            <p className="text-sm font-medium">画质</p>
-            <OptionPills
-              value={webpQuality}
-              options={WEBP_QUALITY_OPTIONS}
-              onChange={setWebpQuality}
-              ariaLabel="WebP 画质"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
-              GIF 和已经是 WebP / AVIF 的文件不会转换。失败时保存原文件。
-            </p>
-          </div>
-        ) : null}
         <p className="mt-4 text-center text-xs text-muted-foreground">
           支持 JPG / JPEG、PNG、WebP、GIF、AVIF、BMP，单张最大 {maxLabel}。
-          {convertWebp ? ` 画质 ${webpQuality || DEFAULT_WEBP_QUALITY}。` : ""}
+          {convertWebp ? ` 将转为 WebP，画质 ${webpQuality || DEFAULT_WEBP_QUALITY}。` : " 按原格式保存。"}
+          {" "}
+          <Link to="/settings" className="underline underline-offset-2" onClick={closeUploadDialog}>
+            在设置中更改
+          </Link>
         </p>
       </div>
     </div>

@@ -1,66 +1,80 @@
-import { useEffect, useState } from "react"
-import { filesFromDataTransfer } from "@/lib/file-validation"
+import { useEffect, useRef, useState } from "react"
+import { filesFromDataTransfer, isFileDrag } from "@/lib/file-validation"
 import { useUploadImages } from "@/hooks/useUploadImages"
 
 export function useDropUpload(enabled: boolean) {
   const [dragging, setDragging] = useState(false)
   const { queueFiles } = useUploadImages()
+  const queueFilesRef = useRef(queueFiles)
+  queueFilesRef.current = queueFiles
 
   useEffect(() => {
     if (!enabled) {
       return
     }
 
-    let depth = 0
+    const reset = () => {
+      setDragging(false)
+    }
 
     const onDragEnter = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes("Files")) {
+      if (!isFileDrag(event.dataTransfer)) {
         return
       }
       event.preventDefault()
-      depth += 1
       setDragging(true)
     }
 
     const onDragOver = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes("Files")) {
+      if (!isFileDrag(event.dataTransfer)) {
         return
       }
       event.preventDefault()
-      event.dataTransfer.dropEffect = "copy"
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy"
+      }
+      setDragging(true)
     }
 
     const onDragLeave = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes("Files")) {
+      if (!isFileDrag(event.dataTransfer)) {
         return
       }
-      event.preventDefault()
-      depth = Math.max(0, depth - 1)
-      if (depth === 0) {
-        setDragging(false)
+      const next = event.relatedTarget
+      if (next instanceof Node && document.documentElement.contains(next)) {
+        return
       }
+      reset()
     }
 
     const onDrop = (event: DragEvent) => {
       event.preventDefault()
-      depth = 0
-      setDragging(false)
+      reset()
+      if ((event.target as HTMLElement | null)?.closest?.("[data-upload-dropzone]")) {
+        return
+      }
       const files = filesFromDataTransfer(event.dataTransfer)
-      void queueFiles(files)
+      void queueFilesRef.current(files)
+    }
+
+    const onDragEnd = () => {
+      reset()
     }
 
     window.addEventListener("dragenter", onDragEnter)
     window.addEventListener("dragover", onDragOver)
     window.addEventListener("dragleave", onDragLeave)
     window.addEventListener("drop", onDrop)
+    window.addEventListener("dragend", onDragEnd)
 
     return () => {
       window.removeEventListener("dragenter", onDragEnter)
       window.removeEventListener("dragover", onDragOver)
       window.removeEventListener("dragleave", onDragLeave)
       window.removeEventListener("drop", onDrop)
+      window.removeEventListener("dragend", onDragEnd)
     }
-  }, [enabled, queueFiles])
+  }, [enabled])
 
   return { dragging }
 }

@@ -1,11 +1,16 @@
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
+import { toast } from "sonner"
 import {
   DEFAULT_UPLOAD_CONCURRENCY,
   DEFAULT_WEBP_QUALITY,
+  parseWebpQuality,
   type ImageItem,
   type WebpQuality,
 } from "@nangua/shared"
-import { ApiError, prependUploadedImage, uploadImage } from "@/lib/api"
+import { ApiError, addImagesToAlbum, prependUploadedImage, uploadImage } from "@/lib/api"
+import { queryClient } from "@/lib/query-client"
+import { queryKeys } from "@/lib/query-keys"
 
 export type UploadStatus = "queued" | "uploading" | "success" | "error"
 
@@ -16,6 +21,7 @@ export interface UploadQueueItem {
   status: UploadStatus
   error?: string
   result?: ImageItem
+  albumId?: string
 }
 
 interface UploadState {
@@ -26,7 +32,7 @@ interface UploadState {
   setConcurrency: (value: number) => void
   setConvertWebp: (value: boolean) => void
   setWebpQuality: (value: WebpQuality) => void
-  enqueue: (files: File[]) => void
+  enqueue: (files: File[], albumId?: string) => void
   retry: (id: string) => void
   remove: (id: string) => void
   clearFinished: () => void
@@ -70,6 +76,16 @@ async function runUpload(id: string) {
     )
 
     prependUploadedImage(response.item)
+    if (current.albumId) {
+      try {
+        await addImagesToAlbum(current.albumId, [response.item.id])
+        prependUploadedImage(response.item, { albumId: current.albumId })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.albums })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.album(current.albumId) })
+      } catch (caught) {
+        toast.error(`${current.file.name || "Image"}: 已上传到资料库，但没能加入当前相册`)
+      }
+    }
     useUploadStore.setState((state) => ({
       items: state.items.map((item) =>
         item.id === id
@@ -121,7 +137,9 @@ function pumpUploads() {
   }
 }
 
-export const useUploadStore = create<UploadState>((set) => ({
+export const useUploadStore = create<UploadState>()(
+  persist(
+    (set) => ({
   items: [],
   concurrency: DEFAULT_UPLOAD_CONCURRENCY,
   convertWebp: false,
@@ -129,7 +147,7 @@ export const useUploadStore = create<UploadState>((set) => ({
   setConcurrency: (concurrency) => set({ concurrency }),
   setConvertWebp: (convertWebp) => set({ convertWebp }),
   setWebpQuality: (webpQuality) => set({ webpQuality }),
-  enqueue: (files) => {
+  enqueue: (files, albumId) => {
     if (files.length === 0) {
       return
     }
@@ -142,6 +160,7 @@ export const useUploadStore = create<UploadState>((set) => ({
           file,
           progress: null,
           status: "queued" as const,
+          albumId,
         })),
       ],
     }))
@@ -170,4 +189,21 @@ export const useUploadStore = create<UploadState>((set) => ({
       items: state.items.filter((item) => item.status === "queued" || item.status === "uploading"),
     }))
   },
-}))
+    }),
+    {
+      name: "nangua-gallery-upload",
+      partialize: (state) => ({
+        convertWebp: state.convertWebp,
+        webpQuality: state.webpQuality,
+      }),
+      merge: (persisted, current) => {
+        const stored = persisted as { convertWebp?: unknown; webpQuality?: unknown } | undefined
+        return {
+          ...current,
+          convertWebp: stored?.convertWebp === true,
+          webpQuality: parseWebpQuality(stored?.webpQuality),
+        }
+      },
+    },
+  ),
+)

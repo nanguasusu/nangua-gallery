@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { partitionImageFiles } from "@/lib/file-validation"
+import { partitionImageFiles, isFileDrag } from "@/lib/file-validation"
+
+describe("isFileDrag", () => {
+  it("detects Files in dataTransfer.types", () => {
+    expect(isFileDrag({ types: ["Files"] } as DataTransfer)).toBe(true)
+    expect(isFileDrag({ types: ["text/plain"] } as DataTransfer)).toBe(false)
+    expect(isFileDrag(null)).toBe(false)
+  })
+})
 
 function jpegFile(name: string, type: string) {
   return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])], name, { type })

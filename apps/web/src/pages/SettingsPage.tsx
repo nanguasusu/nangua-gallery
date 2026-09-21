@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
+  DEFAULT_WEBP_QUALITY,
   UPLOAD_CONCURRENCY_OPTIONS,
   UPLOAD_SIZE_MB_OPTIONS,
+  WEBP_QUALITY_OPTIONS,
   bytesFromMb,
   mbFromBytes,
   previewObjectKey,
@@ -14,6 +16,7 @@ import { OptionPills } from "@/components/shared/OptionPills"
 import { syncR2Metadata, updateConfig } from "@/lib/api"
 import { queryKeys } from "@/lib/query-keys"
 import { useConfig } from "@/hooks/useConfig"
+import { useUploadStore } from "@/stores/uploadStore"
 import type { SyncResult } from "@/types/image"
 
 export function SettingsPage() {
@@ -26,6 +29,10 @@ export function SettingsPage() {
   const [monthlyFolders, setMonthlyFolders] = useState(true)
   const [maxMb, setMaxMb] = useState<UploadSizeMb>(20)
   const [concurrency, setConcurrency] = useState<UploadConcurrency>(3)
+  const convertWebp = useUploadStore((state) => state.convertWebp)
+  const webpQuality = useUploadStore((state) => state.webpQuality)
+  const setConvertWebp = useUploadStore((state) => state.setConvertWebp)
+  const setWebpQuality = useUploadStore((state) => state.setWebpQuality)
 
   useEffect(() => {
     if (!config.data) {
@@ -99,7 +106,7 @@ export function SettingsPage() {
       <div className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="font-medium">上传</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          这些选项对之后的新上传生效。已有 R2 对象不会被改动。
+          根目录、分目录、上限和并发需要点保存。转为 WebP 和画质改完立刻生效，并记在当前浏览器。
         </p>
         <label className="mt-4 block text-sm font-medium">
           根目录
@@ -137,6 +144,33 @@ export function SettingsPage() {
           onChange={setConcurrency}
           ariaLabel="同时上传数量"
         />
+        <p className="mt-4 text-sm font-medium">转为 WebP</p>
+        <OptionPills
+          value={convertWebp ? "on" : "off"}
+          options={["on", "off"]}
+          labels={{ on: "开启", off: "关闭" }}
+          onChange={(value) => setConvertWebp(value === "on")}
+          ariaLabel="转为 WebP"
+        />
+        {convertWebp ? (
+          <>
+            <p className="mt-4 text-sm font-medium">WebP 画质</p>
+            <OptionPills
+              value={webpQuality}
+              options={WEBP_QUALITY_OPTIONS}
+              onChange={setWebpQuality}
+              ariaLabel="WebP 画质"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              GIF 和已经是 WebP / AVIF 的文件不会转换。失败时保存原文件。当前画质 {webpQuality || DEFAULT_WEBP_QUALITY}。
+            </p>
+          </>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">关闭时按原格式保存。</p>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          转为 WebP 和画质保存在当前浏览器，换设备需要重新设置。
+        </p>
         <Button
           type="button"
           className="mt-5"

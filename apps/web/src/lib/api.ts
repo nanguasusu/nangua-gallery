@@ -349,14 +349,17 @@ export async function syncR2Metadata(cursor?: string): Promise<SyncResult> {
   }, "同步失败")
 }
 
-export function prependUploadedImage(item: ImageItem) {
+export function prependUploadedImage(item: ImageItem, options?: { albumId?: string }) {
   const matches = queryClient.getQueriesData<InfiniteData<ImageListResponse, string | undefined>>({
     queryKey: ["images"],
   })
 
   for (const [key, current] of matches) {
     const filter = (key[1] ?? {}) as ImageListFilter
-    if (filter.deleted || filter.favorite || filter.albumId) {
+    if (filter.deleted || filter.favorite) {
+      continue
+    }
+    if (filter.albumId && filter.albumId !== options?.albumId) {
       continue
     }
     if (filter.search && !matchesSearch(item, filter.search)) {

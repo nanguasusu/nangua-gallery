@@ -57,6 +57,15 @@ export async function partitionImageFiles(
   return { accepted, rejected }
 }
 
+export function isFileDrag(dataTransfer: DataTransfer | null | undefined): boolean {
+  const types = dataTransfer?.types
+  if (!types) {
+    return false
+  }
+
+  return Array.from(types).some((type) => type === "Files" || type === "application/x-moz-file")
+}
+
 export function filesFromDataTransfer(dataTransfer: DataTransfer | null): File[] {
   if (!dataTransfer) {
     return []
