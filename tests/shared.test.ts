@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { escapeLike, exifDateToIso, parseImageSort, parseTiffTakenAt } from "@nangua/shared"
+import {
+  escapeLike,
+  exifDateToIso,
+  formatHtml,
+  formatMarkdown,
+  formatPlainUrls,
+  parseImageSort,
+  parseTiffTakenAt,
+} from "@nangua/shared"
 
 describe("exifDateToIso", () => {
   it("converts EXIF datetime to ISO", () => {
@@ -30,6 +38,36 @@ describe("parseImageSort", () => {
     expect(parseImageSort("nope")).toBe("date")
     expect(parseImageSort("name")).toBe("name")
     expect(parseImageSort("size")).toBe("size")
+  })
+})
+
+describe("copy formats", () => {
+  const urls = [
+    "https://img.nanguasu.cc/2026/07/example.webp",
+    "https://img.nanguasu.cc/2026/07/second.webp",
+  ]
+
+  it("joins plain urls", () => {
+    expect(formatPlainUrls(urls)).toBe(urls.join("\n"))
+  })
+
+  it("creates markdown images", () => {
+    expect(formatMarkdown(urls)).toBe(
+      `![](${urls[0]})\n\n![](${urls[1]})`,
+    )
+  })
+
+  it("creates html images with a default inline width", () => {
+    expect(formatHtml(urls)).toBe(
+      `<img style="width:400px" src="${urls[0]}" loading="lazy" />\n<img style="width:400px" src="${urls[1]}" loading="lazy" />`,
+    )
+  })
+
+  it("uses a validated inline html width", () => {
+    expect(formatHtml([urls[0]], { width: 720 })).toBe(
+      `<img style="width:720px" src="${urls[0]}" loading="lazy" />`,
+    )
+    expect(formatHtml([urls[0]], { width: 9999 })).toContain('style="width:400px"')
   })
 })
 

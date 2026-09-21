@@ -27,7 +27,15 @@ export { readExifTakenAt, exifDateToIso, parseTiffTakenAt } from "./exif"
 export type { AllowedImageMimeType } from "./mime"
 export { MAX_IMAGE_BYTES, MAX_DELETE_KEYS, UPLOAD_CONCURRENCY, MULTIPART_OVERHEAD_BYTES, ALLOWED_IMAGE_MIME_TYPES, normalizeImageMime, extensionFromMime, mimeFromExtension, sniffImageMime, resolveUploadMime } from "./mime"
 export { defaultUploadDirectory, sanitizeDirectory, generateObjectKey } from "./object-key"
-export { formatPlainUrls, formatMarkdown, formatHtml } from "./copy"
+export {
+  DEFAULT_HTML_COPY_WIDTH,
+  MIN_HTML_COPY_WIDTH,
+  MAX_HTML_COPY_WIDTH,
+  normalizeHtmlCopyWidth,
+  formatPlainUrls,
+  formatMarkdown,
+  formatHtml,
+} from "./copy"
 export {
   DEFAULT_MAX_IMAGE_BYTES,
   HARD_MAX_IMAGE_BYTES,
