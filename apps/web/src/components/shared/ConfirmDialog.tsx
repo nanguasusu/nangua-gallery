@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 
 interface ConfirmDialogProps {
@@ -21,17 +23,33 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
-  if (!open) {
+  useEffect(() => {
+    if (!open || pending) {
+      return
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        onCancel()
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open, pending, onCancel])
+
+  if (!open || typeof document === "undefined") {
     return null
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center p-4 md:items-center">
+  return createPortal(
+    <div className="pointer-events-auto fixed inset-0 z-[80] flex items-end justify-center p-4 md:items-center">
       <button
         type="button"
         className="absolute inset-0 bg-black/40"
         aria-label="取消"
-        onClick={onCancel}
+        onClick={pending ? undefined : onCancel}
       />
       <div
         role="dialog"
@@ -57,6 +75,7 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

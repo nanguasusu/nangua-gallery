@@ -154,6 +154,25 @@ export function SettingsPage() {
       </div>
 
       <div className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--shadow-card)]">
+        <h3 className="font-medium">删除</h3>
+        {config.data?.enableDelete ? (
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            永久删除已开启。照片、收藏、相册里的删除只会进回收站。要真正从 Cloudflare R2
+            删掉文件，打开「最近删除」，选中图片后点「永久删除」。公开图床链接会失效，无法恢复。回收站超过
+            30 天的图片会由每日定时任务自动清除。
+          </p>
+        ) : (
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            目前只能移入回收站，R2 里的文件还在。要开启真删除，把 Worker 的{" "}
+            <code className="text-foreground">ENABLE_DELETE</code> 设为{" "}
+            <code className="text-foreground">true</code> 后重新部署。如果以前用{" "}
+            <code className="text-foreground">wrangler secret put ENABLE_DELETE</code>{" "}
+            写过 false，secret 会盖过配置，需要改掉或删掉这个 secret。
+          </p>
+        )}
+      </div>
+
+      <div className="mt-6 rounded-[20px] bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="font-medium">短链接</h3>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
           新上传会生成短链接，格式为当前相册域名下的 <code className="text-foreground">/s/xxxx</code>，跳转到

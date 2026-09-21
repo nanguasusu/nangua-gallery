@@ -135,9 +135,9 @@ export function ImageLightbox({
         }
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/82" />
-        {image ? (
+      {visible && image ? (
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/82" />
           <Dialog.Content
             aria-describedby={undefined}
             className="fixed inset-0 z-50 flex h-dvh w-full max-w-none translate-x-0 translate-y-0 flex-col outline-none md:flex-row"
@@ -370,8 +370,8 @@ export function ImageLightbox({
               </div>
             </aside>
           </Dialog.Content>
-        ) : null}
-      </Dialog.Portal>
+        </Dialog.Portal>
+      ) : null}
     </Dialog.Root>
   )
 }

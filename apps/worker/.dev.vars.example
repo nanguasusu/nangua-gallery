@@ -6,7 +6,7 @@ PUBLIC_IMAGE_BASE_URL=https://img.nnann.cc
 GALLERY_USERNAME=ling
 GALLERY_PASSWORD=change-me
 SESSION_SECRET=generate-a-long-random-string
-ENABLE_DELETE=false
+ENABLE_DELETE=true
 # Optional. If set, POST /api/admin/sync also accepts Authorization: Bearer <token>.
 # Logged-in session can still run sync from Settings.
 # Optional comma-separated extra CORS origins (the Worker host is always allowed).

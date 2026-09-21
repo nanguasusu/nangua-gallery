@@ -6,7 +6,7 @@ export function TrashPage() {
       mode="trash"
       filter={{ deleted: true }}
       emptyTitle="回收站是空的"
-      emptyDescription="移入回收站的图片会出现在这里。Phase 3 不会自动清空回收站。"
+      emptyDescription="移入回收站的图片会出现在这里。永久删除会从 Cloudflare R2 去掉文件，公开链接会失效，无法恢复。"
     />
   )
 }

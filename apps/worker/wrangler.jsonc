@@ -35,7 +35,7 @@
   },
   "vars": {
     "PUBLIC_IMAGE_BASE_URL": "https://img.nnann.cc",
-    "ENABLE_DELETE": "false",
+    "ENABLE_DELETE": "true",
     "GALLERY_ORIGINS": ""
   },
   "triggers": {

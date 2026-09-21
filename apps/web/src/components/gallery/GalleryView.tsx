@@ -195,15 +195,21 @@ export function GalleryView({
       <ImageLightbox
         images={images}
         selectedKey={selectedImageKey}
-        open={lightboxOpen}
+        open={lightboxOpen && pendingDeleteKeys === null && pendingPermanentKeys === null}
         mode={mode}
         enablePermanentDelete={enablePermanentDelete}
         onClose={closeLightbox}
         onSelect={setSelectedImageKey}
         onFavorite={(image) => toggleFavorite.mutate({ image, favorite: !image.favorite })}
-        onTrash={(image) => requestDelete([image.key])}
+        onTrash={(image) => {
+          closeLightbox()
+          requestDelete([image.key])
+        }}
         onRestore={(image) => restoreImages.mutate([image])}
-        onPermanentDelete={(image) => requestPermanentDelete([image.key])}
+        onPermanentDelete={(image) => {
+          closeLightbox()
+          requestPermanentDelete([image.key])
+        }}
         onSetCover={
           mode === "album" && albumId
             ? (image) => setAlbumCover.mutate(image.id)
