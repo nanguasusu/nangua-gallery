@@ -103,7 +103,7 @@ describe("copy formats", () => {
     expect(
       formatHtml([urls[0]], { titles: ['miku <大头> & "ok"'] }),
     ).toBe(
-      `<center><img style="width:400px" src="${urls[0]}" alt="miku &lt;大头&gt; &amp; &quot;ok&quot;" title="miku &lt;大头&gt; &amp; &quot;ok&quot;" loading="lazy" /><p style="margin:8px 0 0;text-align:center">miku &lt;大头&gt; &amp; &quot;ok&quot;</p></center>`,
+      `<center><img style="width:400px" src="${urls[0]}" alt="miku &lt;大头&gt; &amp; &quot;ok&quot;" title="miku &lt;大头&gt; &amp; &quot;ok&quot;" loading="lazy" /><p style="margin:8px 0 0;text-align:center;font-size:14px;color:#666">miku &lt;大头&gt; &amp; &quot;ok&quot;</p></center>`,
     )
   })
 })

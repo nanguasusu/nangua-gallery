@@ -36,7 +36,7 @@ export function formatHtml(
       if (!title) {
         return `<center>${img}</center>`
       }
-      return `<center>${img}<p style="margin:8px 0 0;text-align:center">${title}</p></center>`
+      return `<center>${img}<p style="margin:8px 0 0;text-align:center;font-size:14px;color:#666">${title}</p></center>`
     })
     .join("\n")
 }
