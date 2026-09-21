@@ -57,17 +57,19 @@ describe("copy formats", () => {
     )
   })
 
-  it("creates html images with a default inline width", () => {
+  it("creates centered html images with a default inline width", () => {
     expect(formatHtml(urls)).toBe(
-      `<img style="width:400px" src="${urls[0]}" loading="lazy" />\n<img style="width:400px" src="${urls[1]}" loading="lazy" />`,
+      `<img style="display:block;width:400px;margin:0 auto" src="${urls[0]}" loading="lazy" />\n<img style="display:block;width:400px;margin:0 auto" src="${urls[1]}" loading="lazy" />`,
     )
   })
 
   it("uses a validated inline html width", () => {
     expect(formatHtml([urls[0]], { width: 720 })).toBe(
-      `<img style="width:720px" src="${urls[0]}" loading="lazy" />`,
+      `<img style="display:block;width:720px;margin:0 auto" src="${urls[0]}" loading="lazy" />`,
     )
-    expect(formatHtml([urls[0]], { width: 9999 })).toContain('style="width:400px"')
+    expect(formatHtml([urls[0]], { width: 9999 })).toContain(
+      'style="display:block;width:400px;margin:0 auto"',
+    )
   })
 })
 
