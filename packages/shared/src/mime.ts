@@ -18,6 +18,9 @@ const ALLOWED_MIME_SET = new Set<string>(ALLOWED_IMAGE_MIME_TYPES)
 
 const MIME_ALIASES: Record<string, AllowedImageMimeType> = {
   "image/jpg": "image/jpeg",
+  "image/pjpeg": "image/jpeg",
+  "image/jfif": "image/jpeg",
+  "image/x-jpeg": "image/jpeg",
 }
 
 const MIME_TO_EXTENSION: Record<AllowedImageMimeType, string> = {
@@ -70,7 +73,7 @@ export function extensionFromMime(mime: string): string | null {
 }
 
 export function sniffImageMime(bytes: Uint8Array): AllowedImageMimeType | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     return "image/jpeg"
   }
 
@@ -129,18 +132,8 @@ export function sniffImageMime(bytes: Uint8Array): AllowedImageMimeType | null {
 }
 
 export function resolveUploadMime(
-  declaredType: string | undefined,
+  _declaredType: string | undefined,
   bytes: Uint8Array,
 ): AllowedImageMimeType | null {
-  const sniffed = sniffImageMime(bytes)
-  if (!sniffed) {
-    return null
-  }
-
-  const declared = normalizeImageMime(declaredType)
-  if (declared && declared !== sniffed) {
-    return null
-  }
-
-  return sniffed
+  return sniffImageMime(bytes)
 }

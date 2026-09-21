@@ -81,7 +81,7 @@ export function UploadDialog() {
           </div>
         ) : null}
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          支持 JPEG、PNG、WebP、GIF、AVIF、BMP，单张最大 {maxLabel}。
+          支持 JPG / JPEG、PNG、WebP、GIF、AVIF、BMP，单张最大 {maxLabel}。
           {convertWebp ? ` 画质 ${webpQuality || DEFAULT_WEBP_QUALITY}。` : ""}
         </p>
       </div>

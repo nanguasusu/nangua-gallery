@@ -51,7 +51,7 @@ export function UploadDropzone({ onFiles }: UploadDropzoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,image/*"
+        accept=".jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,image/jpeg,image/jpg,image/png,image/webp,image/gif,image/avif,image/bmp,image/*"
         multiple
         className="sr-only"
         onChange={(event) => {

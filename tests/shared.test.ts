@@ -5,8 +5,11 @@ import {
   formatHtml,
   formatMarkdown,
   formatPlainUrls,
+  normalizeImageMime,
   parseImageSort,
   parseTiffTakenAt,
+  resolveUploadMime,
+  sniffImageMime,
 } from "@nangua/shared"
 
 describe("exifDateToIso", () => {
@@ -38,6 +41,30 @@ describe("parseImageSort", () => {
     expect(parseImageSort("nope")).toBe("date")
     expect(parseImageSort("name")).toBe("name")
     expect(parseImageSort("size")).toBe("size")
+  })
+})
+
+describe("upload mime", () => {
+  it("treats jpg aliases as jpeg", () => {
+    expect(normalizeImageMime("image/jpg")).toBe("image/jpeg")
+    expect(normalizeImageMime("image/pjpeg")).toBe("image/jpeg")
+    expect(normalizeImageMime("image/jfif")).toBe("image/jpeg")
+  })
+
+  it("sniffs jpeg from SOI even without a following marker byte", () => {
+    expect(sniffImageMime(new Uint8Array([0xff, 0xd8, 0x00]))).toBe("image/jpeg")
+    expect(sniffImageMime(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg")
+  })
+
+  it("accepts jpeg bytes even when the declared type disagrees", () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x00, 0x10])
+    expect(resolveUploadMime("image/png", jpeg)).toBe("image/jpeg")
+    expect(resolveUploadMime("image/jpg", jpeg)).toBe("image/jpeg")
+  })
+
+  it("accepts real png bytes stored with a jpg declared type", () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    expect(resolveUploadMime("image/jpeg", png)).toBe("image/png")
   })
 })
 

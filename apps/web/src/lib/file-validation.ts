@@ -1,7 +1,7 @@
 import {
   DEFAULT_MAX_IMAGE_BYTES,
   formatMaxBytesLabel,
-  normalizeImageMime,
+  mimeFromExtension,
   resolveUploadMime,
 } from "@nangua/shared"
 
@@ -32,18 +32,8 @@ export async function partitionImageFiles(
       continue
     }
 
-    const declared = normalizeImageMime(file.type)
-    if (file.type && !declared) {
-      rejected.push({
-        file,
-        code: "INVALID_FILE_TYPE",
-        message: "仅支持 JPEG、PNG、WebP、GIF、AVIF 和 BMP 图片",
-      })
-      continue
-    }
-
     try {
-      const header = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+      const header = new Uint8Array(await file.slice(0, 32).arrayBuffer())
       if (!resolveUploadMime(file.type, header)) {
         rejected.push({
           file,
@@ -72,7 +62,12 @@ export function filesFromDataTransfer(dataTransfer: DataTransfer | null): File[]
     return []
   }
 
-  return [...dataTransfer.files].filter((file) => file.type.startsWith("image/") || file.type === "")
+  return [...dataTransfer.files].filter(
+    (file) =>
+      file.type.startsWith("image/") ||
+      file.type === "" ||
+      mimeFromExtension(file.name) !== null,
+  )
 }
 
 export function filesFromClipboard(clipboard: DataTransfer | null): File[] {
