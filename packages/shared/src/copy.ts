@@ -25,6 +25,9 @@ export function formatMarkdown(urls: string[]): string {
 export function formatHtml(urls: string[], options: { width?: number } = {}): string {
   const width = normalizeHtmlCopyWidth(options.width)
   return urls
-    .map((url) => `<img style="width:${width}px" src="${url}" loading="lazy" />`)
+    .map(
+      (url) =>
+        `<img style="display:block;width:${width}px;margin:0 auto" src="${url}" loading="lazy" />`,
+    )
     .join("\n")
 }
